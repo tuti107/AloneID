@@ -161,7 +161,8 @@ export default {
     g.cut({ pos: [-0.6, 1.25, 0.6], look: [3.4, 1.1, 1.6], fov: 48 });
     g.player.place(3.6, 1.6, -Math.PI / 2);
     g.fade(0, 1.6);
-    await g.walk(2.6, 1.6, 1.0);
+    // a few steps in from the door, clear of the desk chair
+    await g.walk(2.85, 1.4);
     g.audio.sfx('doorSlam');
     g.shake(0.08, 0.3);
     await g.wait(0.5);

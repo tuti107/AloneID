@@ -129,9 +129,14 @@ export class Player {
       const aw = this.autoWalk;
       const dx = aw.x - this.pos.x, dz = aw.z - this.pos.z;
       const d = Math.hypot(dx, dz);
-      if (d < 0.08 || this.stateT > 8) { this.autoWalk = null; aw.res(); }
+      const want = Math.atan2(dx, dz);
+      // Something in the way (furniture, a monster): stop there instead of
+      // walking on the spot until the time runs out.
+      if (d < aw.best - 0.01) { aw.best = d; aw.stuck = 0; }
+      else if (Math.abs(angleDiff(this.rot, want)) < 0.6) aw.stuck += dt;
+      if (d < 0.08 || aw.stuck > 0.5 || this.stateT > 8) { this.autoWalk = null; aw.res(); }
       else {
-        this.rot = approachAngle(this.rot, Math.atan2(dx, dz), 7 * dt);
+        this.rot = approachAngle(this.rot, want, 7 * dt);
         move = Math.min(1, d / 0.25);
       }
     }
@@ -296,7 +301,7 @@ export class Player {
   }
 
   walkTo(x, z) {
-    return new Promise((res) => { this.autoWalk = { x, z, res }; });
+    return new Promise((res) => { this.autoWalk = { x, z, res, best: Infinity, stuck: 0 }; });
   }
 
   setState(s) {
