@@ -1,0 +1,16 @@
+{
+  "name": "ashcombe-house",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ASHCOMBE HOUSE — 闇にひとり. A survival-horror adventure in the style of the classic fixed-camera polygon horror games.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --dev",
+    "watch": "node build.mjs --watch"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "three": "0.186.1"
+  }
+}
