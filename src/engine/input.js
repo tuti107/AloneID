@@ -103,6 +103,7 @@ export class Input {
     // Analog movement vector (x right, y down/back), for "modern" controls.
     let x = 0, y = 0;
     const stick = this.touchStick || this.padStick;
+    this.analog = !!stick;
     if (stick) { x = stick.x; y = stick.y; }
     else {
       if (cur.has('left')) x -= 1;

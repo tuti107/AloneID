@@ -69,7 +69,7 @@ export class UI {
       this.prompt.innerHTML = text;
       this.prompt.classList.add('on');
     } else this.prompt.classList.remove('on');
-    this.touch.setActionLabel(text ? (this.game.promptVerb || '調べる') : '調べる');
+    this.touch.setActionLabel(text ? this.game.promptVerb || '' : '');
   }
 
   showRoomName(name) {
@@ -572,10 +572,8 @@ class TouchControls {
       this.btns[key] = b;
       return b;
     };
-    B('action', '調べる', ['action', 'confirm']);
-    B('attack', '攻撃', ['attack', 'cancel']);
-    B('run', '走る', ['run'], 'mid');
-    B('inventory', '持物', ['inventory'], 'mid');
+    B('action', 'アクション', ['action', 'confirm'], 'big');
+    B('inventory', '持物', ['inventory', 'cancel'], 'mid');
     B('pause', '≡', ['pause'], 'small');
     this.padId = null;
     const padMove = (e) => {
@@ -588,6 +586,7 @@ class TouchControls {
       this.knob.style.top = 50 + dy * 32 + '%';
       const dead = 0.25;
       input.touchStick = l > dead ? { x: dx, y: dy } : null;
+      this.knob.classList.toggle('run', l > 0.92);
       const th = 0.38;
       input.setTouch('up', dy < -th);
       input.setTouch('down', dy > th);
@@ -596,6 +595,7 @@ class TouchControls {
     };
     const padEnd = () => {
       this.padId = null;
+      this.knob.classList.remove('run');
       this.knob.style.left = '50%';
       this.knob.style.top = '50%';
       input.touchStick = null;
@@ -627,7 +627,9 @@ class TouchControls {
     });
   }
   setActionLabel(t) {
-    if (this.btns.action.textContent !== t) this.btns.action.textContent = t;
+    const label = t || 'アクション';
+    if (this.btns.action.textContent !== label) this.btns.action.textContent = label;
+    this.btns.action.classList.toggle('hot', !!t);
   }
   layout(W, H, stage, portrait, ox = 0, oy = 0) {
     if (!this.enabled) return;
@@ -639,20 +641,15 @@ class TouchControls {
       const areaH = H - areaTop;
       const cy = areaTop + areaH * 0.55;
       place(this.pad, 24, cy - pr);
-      const bx = W - 30;
-      place(b.action, bx - 66 - 8, cy - 70);
-      place(b.attack, bx - 66 - 84, cy - 10);
-      place(b.run, bx - 54 - 4, cy + 28);
-      place(b.inventory, bx - 54 - 150, cy - 86);
+      place(b.action, W - 24 - 96, cy - 48);
+      place(b.inventory, W - 24 - 96 - 74, cy + 22);
       place(b.pause, W - 56, Math.max(8, areaTop + 8));
     } else {
       const cy = H * 0.66;
       place(this.pad, Math.max(12, (stage.left - 150) / 2), cy - pr);
-      const right = W - Math.max(12, (stage.left - 160) / 2);
-      place(b.action, right - 70, cy - 80);
-      place(b.attack, right - 150, cy - 20);
-      place(b.run, right - 62, cy + 10);
-      place(b.inventory, right - 140, cy - 120);
+      const right = W - Math.max(12, (stage.left - 110) / 2);
+      place(b.action, right - 96, cy - 48);
+      place(b.inventory, right - 82, cy - 140);
       place(b.pause, W - 56, 10);
     }
   }

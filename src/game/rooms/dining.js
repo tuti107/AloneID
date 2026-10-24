@@ -108,6 +108,7 @@ export default {
     await g.wait(1.4);
     await g.say('長い食卓に、青白い人影がいくつも座っている……！');
     await g.say('彼らはこちらに目もくれず、静かに晩餐を続けている。\n……この静寂を、乱してはならない気がした。');
+    await g.say('（走ったり、争ったりせず、ゆっくり歩こう）');
     g.cut(null);
     g.unlock();
   },

@@ -119,7 +119,7 @@ export default {
       g.spawn(r, { id: 'butler', type: 'butler', x: -3.0, z: 0.1, rot: Math.PI / 2, onDeath: () => { g.flags['dead:butler'] = true; } });
     }
 
-    r.shot({ id: 'east', pos: [7.7, 2.65, 1.05], look: [-1.5, 0.9, -0.35], fov: 52, zone: [1.8, -1.6, 8.3, 1.6] });
+    r.shot({ id: 'east', pos: [0.6, 2.6, -1.05], look: [8.0, 0.7, 0.35], fov: 52, zone: [1.8, -1.6, 8.3, 1.6] });
     r.shot({ id: 'mid', pos: [-7.7, 2.6, -1.05], look: [2.5, 0.8, 0.45], fov: 50, zone: [-3.6, -1.6, 2.2, 1.6] });
     r.shot({ id: 'west', pos: [2.4, 2.55, 1.05], look: [-8.5, 0.6, -0.3], fov: 50, zone: [-10.6, -1.6, -3.2, 1.6] });
   },

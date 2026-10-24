@@ -1,7 +1,7 @@
 // Edgar Hale: movement (tank or camera-relative), pushing, combat, held lamp.
 import * as THREE from 'three';
 import { buildInvestigator } from './characters.js';
-import { Animator, blobShadow } from './rig.js';
+import { Animator, blobShadow, addXray, brighten } from './rig.js';
 import { resolveCircle, separateCircles } from '../engine/collision.js';
 import { angleDiff, approachAngle, damp, noise1 } from '../engine/util.js';
 import { ITEMS } from './items.js';
@@ -75,6 +75,8 @@ export class Player {
     this.muzzle = new THREE.PointLight(0xffd080, 0, 6, 2);
     this.muzzle.position.set(0, -0.2, 0.05);
     parts.rGrip.add(this.muzzle);
+    brighten(this.root);
+    addXray(this.root, 0xf0d898);
   }
 
   place(x, z, rot) {
@@ -131,39 +133,52 @@ export class Player {
         move = Math.min(1, d / 0.25);
       }
     }
-    const control = this.canAct();
-    if (control) {
-      if (input.pressed('attack')) { input.consume('attack'); this.attack(); }
-      else if (input.pressed('action')) { input.consume('action'); g.tryInteract(); }
+    // one button does everything: examine, open, take or fight
+    if (this.canAct() && (input.pressed('action') || input.pressed('attack'))) {
+      input.consume('action', 'attack');
+      g.contextAction();
     }
     if (this.canAct()) {
       if (g.settings.controls === 'modern') {
         const ax = input.axis.x, ay = input.axis.y;
         const mag = Math.min(1, Math.hypot(ax, ay));
         if (mag > 0.2) {
-          if (!this.basis) {
-            const cam = g.director.cam;
+          const dirIn = Math.atan2(ax, -ay);
+          // Directions are read relative to the camera when the stick is
+          // pushed. While it stays held the same way the old basis is kept,
+          // so a camera cut doesn't suddenly flip where you're walking;
+          // swing the stick somewhere new and the current view is used.
+          if (!this.basis || Math.abs(angleDiff(this.basis.dirIn, dirIn)) > 0.9) {
             const d = new THREE.Vector3();
-            cam.getWorldDirection(d);
+            g.director.cam.getWorldDirection(d);
             const l = Math.hypot(d.x, d.z) || 1;
-            this.basis = { fx: d.x / l, fz: d.z / l };
+            this.basis = { fx: d.x / l, fz: d.z / l, dirIn };
           }
           const { fx, fz } = this.basis;
-          const rx = -fz, rz = fx;
-          const dx = fx * -ay + rx * ax, dz = fz * -ay + rz * ax;
-          const want = Math.atan2(dx, dz);
+          const dx = fx * -ay - fz * ax, dz = fz * -ay + fx * ax;
+          let want = Math.atan2(dx, dz);
+          if (this.pushing) {
+            // square up to the furniture and shove it straight along its track
+            const ax2 = this.pushing.axis;
+            const sgn = Math.sign(Math.sin(want) * ax2[0] + Math.cos(want) * ax2[1]) || 1;
+            const along = Math.atan2(ax2[0] * sgn, ax2[1] * sgn);
+            if (Math.abs(angleDiff(want, along)) < 1.25) want = along;
+            else this.pushing = null;
+          }
           const diff = angleDiff(this.rot, want);
-          this.rot = approachAngle(this.rot, want, 9 * dt);
-          move = Math.abs(diff) < 1.0 ? mag : 0;
-          this.turningVisual = Math.abs(diff) > 0.3 && move === 0;
+          this.rot = approachAngle(this.rot, want, 11 * dt);
+          move = Math.abs(diff) < 1.2 ? Math.min(1, mag / 0.85) * Math.max(0.25, Math.cos(diff)) : 0;
+          this.turningVisual = move === 0;
+          run = input.down('run') || (input.analog && mag > 0.92);
         } else this.basis = null;
       } else {
         if (input.down('up')) move = 1;
         else if (input.down('down')) move = -1;
         if (input.down('left')) turn += 1;
         if (input.down('right')) turn -= 1;
+        // touch has no run button: push the stick all the way to run
+        run = (input.down('run') || (input.analog && Math.hypot(input.axis.x, input.axis.y) > 0.92)) && move > 0;
       }
-      run = input.down('run') && move > 0;
     }
 
     // --- movement
@@ -215,7 +230,8 @@ export class Player {
         const cx = Math.max(-b.hw, Math.min(b.hw, l.x)), cz = Math.max(-b.hd, Math.min(b.hd, l.z));
         const w = b.toWorld(cx, cz, { x: 0, z: 0 });
         const ang = Math.atan2(w.x - this.pos.x, w.z - this.pos.z);
-        if (Math.abs(angleDiff(this.rot, ang)) < 0.75) { bumped = b; break; }
+        // walking into it within ~60° counts (diagonal approaches included)
+        if (Math.abs(angleDiff(this.rot, ang)) < 1.05) { bumped = b; break; }
       }
     }
     if (bumped && bumped === this.bumpBox) this.bumpT += dt;
@@ -230,12 +246,11 @@ export class Player {
       if (!near || !facing) this.pushing = null;
     }
     if (bumped && this.canAct()) {
-      if (bumped.tag === 'push' && this.bumpT > 0.35 && !this.pushing) {
+      if (bumped.tag === 'push' && this.bumpT > 0.3 && !this.pushing) {
         const ps = bumped.owner;
         if (ps && ps.enabled) {
           const d = this.fx * ps.axis[0] + this.fz * ps.axis[1];
-          if (Math.abs(d) > 0.6) this.pushing = ps;
-          else if (!ps.warned) { ps.warned = true; }
+          if (Math.abs(d) > 0.45) this.pushing = ps;
         }
       }
       if (bumped.tag === 'door' && this.bumpT > 0.3 && !run) {

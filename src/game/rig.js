@@ -108,6 +108,59 @@ export function buildHumanoid(spec0 = {}) {
   return parts;
 }
 
+// X-ray silhouette: a stippled copy of an actor drawn only where walls or
+// furniture hide it. Rendered after the room (renderOrder 1) and before the
+// actor itself (renderOrder 2), so the actor never shows through itself.
+// Pulled 0.3m towards the camera so floors touching the soles, or a hat
+// brushing a beam, don't count as hiding the actor.
+const XRAY_VERT = `void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  mv.xyz += normalize(-mv.xyz) * 0.3;
+  gl_Position = projectionMatrix * mv;
+}`;
+const XRAY_FRAG = `uniform vec3 color;
+void main() {
+  if (mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0) < 0.5) discard;
+  gl_FragColor = vec4(color, 1.0);
+}`;
+export function addXray(root, color) {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { color: { value: new THREE.Color(color) } },
+    vertexShader: XRAY_VERT,
+    fragmentShader: XRAY_FRAG,
+    depthFunc: THREE.GreaterDepth,
+    depthWrite: false,
+  });
+  const meshes = [];
+  root.traverse((o) => { if (o.isMesh && o.castShadow && !o.userData.xray) meshes.push(o); });
+  for (const m of meshes) {
+    const x = new THREE.Mesh(m.geometry, mat);
+    x.userData.xray = true;
+    x.renderOrder = 1;
+    x.position.copy(m.position);
+    x.quaternion.copy(m.quaternion);
+    x.scale.copy(m.scale);
+    m.parent.add(x);
+    m.renderOrder = 2;
+  }
+  return mat;
+}
+
+// A little self-illumination so an actor still reads in the darkest corners.
+export function brighten(root, k = 0.18) {
+  root.traverse((o) => {
+    if (!o.isMesh || !o.castShadow || o.userData.xray) return;
+    const boost = (m) => {
+      const c = m.clone();
+      if (!c.emissive) return c;
+      if (c.map) { c.emissiveMap = c.map; c.emissive.setScalar(k); }
+      else c.emissive.copy(c.color).multiplyScalar(k);
+      return c;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(boost) : boost(o.material);
+  });
+}
+
 // Blob shadow under a character (helps grounding where no light casts).
 let blobTex = null;
 export function blobShadow(r = 0.45) {

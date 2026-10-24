@@ -6,7 +6,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { Box } from '../engine/collision.js';
 import { uvBox, uvPlane } from '../engine/geom.js';
 import { NavGrid } from '../engine/nav.js';
-import { Shot } from '../engine/camera.js';
+import { Shot, Occluder } from '../engine/camera.js';
 import { noise1, clamp } from '../engine/util.js';
 import { M, C, spriteMat, mat } from './mats.js';
 import { tex } from '../engine/textures.js';
@@ -263,6 +263,7 @@ export class Room {
   // (x for n/s walls, z for e/w walls).
   shell(x0, z0, x1, z1, o = {}) {
     const h = o.h ?? 3;
+    if (!this.camRect) this.camRect = [x0, z0, x1, z1, h];
     if (o.floor) this.floor(x0, z0, x1, z1, o.floor, 0, o.floorType);
     if (o.ceil) this.ceiling(x0, z0, x1, z1, o.ceil, h);
     const sides = {
@@ -294,6 +295,7 @@ export class Room {
     obj.position.set(x, o.y || 0, z);
     obj.rotation.y = ry;
     const parent = o.dyn || o.tag ? this.dynamic : this.static;
+    if (parent === this.dynamic && o.occlude !== false) obj.userData.dynOcc = true;
     parent.add(obj);
     if (o.tag) this.tag(o.tag, obj);
     obj.traverse((m) => {
@@ -712,6 +714,10 @@ export class Room {
         obj.position.z = oz + this.axis[1] * t;
         box.x = obj.position.x;
         box.z = obj.position.z;
+        if (obj.userData.occluders) {
+          obj.updateMatrixWorld(true);
+          for (const oc of obj.userData.occluders) oc.refresh();
+        }
         if (o.onMove) o.onMove(t, g, silent);
         if (!silent && (t >= this.max - 1e-4 || t <= this.min + 1e-4) && o.onEnd) o.onEnd(t, g);
         room.navDirty = true;
@@ -805,6 +811,8 @@ export class Room {
   // Merge static meshes per material to cut draw calls; build navigation.
   finalize() {
     this.static.updateMatrixWorld(true);
+    this.dynamic.updateMatrixWorld(true);
+    this.collectOccluders();
     const groups = new Map();
     const victims = [];
     this.static.traverse((o) => {
@@ -837,6 +845,54 @@ export class Room {
     this.scene.add(merged);
     this.mergedCount = merged.children.length;
     this.buildNav();
+    this.buildAutoShots();
+  }
+
+  // Opaque, shadow-casting meshes become view blockers for the camera
+  // director (oriented boxes, so sloped beams stay tight).
+  collectOccluders() {
+    const occ = [];
+    const ok = (m) => {
+      if (!m.isMesh || !m.castShadow || !m.visible) return false;
+      const mat = Array.isArray(m.material) ? m.material[0] : m.material;
+      if (!mat || mat.transparent || mat.isMeshBasicMaterial) return false;
+      const g = m.geometry;
+      if (!g.boundingBox) g.computeBoundingBox();
+      const sz = g.boundingBox.getSize(new THREE.Vector3());
+      const sc = m.getWorldScale(new THREE.Vector3());
+      return Math.max(sz.x * sc.x, sz.y * sc.y, sz.z * sc.z) >= 0.3;
+    };
+    this.static.traverse((m) => { if (ok(m)) occ.push(new Occluder(m)); });
+    for (const obj of this.dynamic.children) {
+      if (!obj.userData.dynOcc) continue;
+      const list = [];
+      obj.traverse((m) => { if (ok(m)) list.push(new Occluder(m)); });
+      obj.userData.occluders = list;
+      occ.push(...list);
+    }
+    this.occluders = occ;
+  }
+
+  // Corner cameras near the ceiling, used whenever the authored shots lose
+  // sight of the player.
+  buildAutoShots() {
+    const r = this.def.camRect || this.camRect || [this.bounds[0] + 0.4, this.bounds[1] + 0.4, this.bounds[2] - 0.4, this.bounds[3] - 0.4, 3.2];
+    this.camRect = r;
+    const [x0, z0, x1, z1, h] = r;
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const y = h > 4 ? Math.min(h - 0.6, 4.8) : h - 0.25;
+    this.autoShots = [];
+    const inside = (p) => this.occluders.some((o) => o.contains(p));
+    let i = 0;
+    for (const [px, pz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) {
+      const pos = new THREE.Vector3(px + Math.sign(cx - px) * 0.35, y, pz + Math.sign(cz - pz) * 0.35);
+      for (let k = 0; k < 4 && inside(pos); k++) {
+        pos.x += Math.sign(cx - pos.x) * 0.4;
+        pos.z += Math.sign(cz - pos.z) * 0.4;
+      }
+      if (inside(pos)) continue;
+      this.autoShots.push(new Shot({ id: 'auto' + i++, pos: pos.toArray(), look: [cx, 0.5, cz], fov: 62, auto: true }));
+    }
   }
 
   buildNav() {

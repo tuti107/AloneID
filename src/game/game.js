@@ -17,10 +17,10 @@ import { TitleScene } from './title.js';
 import { burst } from './fx.js';
 
 const SAVE_KEY = 'ashcombe.save.';
-const SETTINGS_KEY = 'ashcombe.settings';
+const SETTINGS_KEY = 'ashcombe.settings.v2';
 const REDUCED_MOTION = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const COARSE = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-const DEFAULT_SETTINGS = { controls: 'classic', res: 'low', dither: true, shadows: COARSE ? 1 : 2, music: 0.7, sfx: 0.9 };
+const DEFAULT_SETTINGS = { controls: 'modern', res: 'low', dither: true, shadows: COARSE ? 1 : 2, music: 0.7, sfx: 0.9 };
 
 function loadSettings() {
   try {
@@ -199,8 +199,7 @@ export class Game {
     if (room.def.update) room.def.update(room, this, dt);
     this.checkTriggers();
     this.updatePrompt();
-    const p = this.player.pos;
-    this.director.update(new THREE.Vector3(p.x, p.y + 1.1, p.z), dt);
+    this.director.update(this.player.pos, dt);
     this.updateLightning(dt);
     if (this.escape) {
       this.escape.rumble = (this.escape.rumble ?? 2) - dt;
@@ -359,8 +358,8 @@ export class Game {
   }
   cut(def) {
     this.director.override = def ? { pos: new THREE.Vector3(...def.pos), look: new THREE.Vector3(...def.look), fov: def.fov || 50 } : null;
-    if (!def && this.room) this.director.current = null;
     if (def) this.director.update(null, 0, true);
+    else if (this.room) this.director.update(this.player.pos, 0, true);
   }
   setFlag(k, v = true) { this.flags[k] = v; }
   has(id) { return this.inv.has(id); }
@@ -436,10 +435,10 @@ export class Game {
     if (!o.keepPos) this.player.place(e.x, e.z, e.rot);
     this.player.refreshHeld();
     this.director.override = null;
-    this.director.setShots(room.shots);
+    this.director.forced = null;
+    this.director.setRoom(room);
     if (room.def.setup) room.def.setup(room, this, entry);
-    const p = this.player.pos;
-    this.director.update(new THREE.Vector3(p.x, p.y + 1.1, p.z), 0, true);
+    this.director.update(this.player.pos, 0, true);
     this.audio.setAmbience(room.def.ambience || 'house', room);
     if (!o.quiet) this.ui.showRoomName(room.name);
     room.visited = true;
@@ -535,11 +534,56 @@ export class Game {
       const reach = it.r + (it.reach ?? 0.7) + (itemId ? 0.6 : 0);
       if (d > reach) continue;
       const ang = d < 0.3 ? 0 : Math.abs(angleDiff(p.rot, Math.atan2(dx, dz)));
-      if (ang > (itemId ? 1.8 : it.arc ?? 1.15)) continue;
-      const score = d + ang * 0.9;
+      // right next to it, any facing will do (the hero turns to it)
+      const arc = itemId ? 1.8 : d < it.r + 0.35 ? Math.PI : it.arc ?? 1.3;
+      if (ang > arc) continue;
+      const score = d + ang * 0.6;
       if (score < bestScore) { best = it; bestScore = score; }
     }
     return best;
+  }
+
+  // What the single action button will do right now.
+  actionPlan() {
+    const w = this.inv.equipped ? ITEMS[this.inv.equipped].weapon : null;
+    const gun = !!(w && w.kind === 'gun');
+    const reach = (w && w.kind === 'melee' ? w.range : 1.1) + 0.3;
+    const threat = this.findThreat(gun ? 12 : reach + 0.9);
+    const it = this.findInteractable();
+    // fight whatever is on top of you or coming for you; otherwise examine/open
+    // what's in front
+    const pressing = threat && threat.m.hunting && threat.d < (gun ? 6 : reach + 0.9);
+    if (threat && (threat.d <= reach || pressing || !it)) return { kind: 'attack', threat, gun };
+    if (it) return { kind: 'use', it };
+    return null;
+  }
+
+  findThreat(range) {
+    const p = this.player;
+    let best = null;
+    for (const m of this.room.monsters) {
+      if (!m.alive || m.hidden || m.invulnerable || m.state === 'dormant') continue;
+      const d = Math.hypot(m.pos.x - p.pos.x, m.pos.z - p.pos.z) - m.radius;
+      if (d > range || (best && d >= best.d)) continue;
+      if (!this.room.nav.sight(p.pos.x, p.pos.z, m.pos.x, m.pos.z)) continue;
+      best = { m, d };
+    }
+    return best;
+  }
+
+  contextAction() {
+    const plan = this.actionPlan();
+    const p = this.player;
+    if (!plan) return;
+    if (plan.kind === 'attack') {
+      const m = plan.threat.m;
+      p.rot = Math.atan2(m.pos.x - p.pos.x, m.pos.z - p.pos.z);
+      p.attack();
+      return;
+    }
+    const it = plan.it;
+    if (!it.noFace && Math.hypot(it.x - p.pos.x, it.z - p.pos.z) > 0.2) p.rot = Math.atan2(it.x - p.pos.x, it.z - p.pos.z);
+    if (it.use) this.run(() => it.use(this));
   }
 
   updatePrompt() {
@@ -547,9 +591,12 @@ export class Game {
       this.ui.setPrompt(null);
       return;
     }
-    const it = this.findInteractable();
-    this.currentInteractable = it;
-    if (it) {
+    const plan = this.actionPlan();
+    if (plan && plan.kind === 'attack') {
+      this.promptVerb = plan.gun ? '撃つ' : '攻撃';
+      this.ui.setPrompt(`<b>${this.promptVerb}</b>${plan.gun ? `残弾 ${this.inv.ammo}` : ''}`);
+    } else if (plan) {
+      const it = plan.it;
       this.promptVerb = typeof it.verb === 'function' ? it.verb(this) : it.verb;
       const label = typeof it.label === 'function' ? it.label(this) : it.label;
       this.ui.setPrompt(`<b>${this.promptVerb}</b>${label}`);
@@ -557,8 +604,7 @@ export class Game {
   }
 
   tryInteract() {
-    const it = this.findInteractable();
-    if (it && it.use) this.run(() => it.use(this));
+    this.contextAction();
   }
 
   // ------------------------------------------------------------ combat
@@ -827,9 +873,21 @@ export class Game {
   }
 
   showControls() {
+    const modern = this.settings.controls !== 'classic';
     const lines = this.ui.touch.enabled
-      ? ['左のパッド：移動（上で前進、左右で旋回）', '［調べる］：調べる・扉を開ける・会話', '［攻撃］：素手／装備した武器で攻撃', '［走る］：押している間走る', '［持物］：持ち物を開く']
-      : ['↑↓←→ / WASD：移動（↑前進 ↓後退 ←→旋回）', 'Shift：走る', 'Space / Z：調べる・扉を開ける・決定', 'X：攻撃（素手は連打でパンチ→キック）', 'I / Tab：持ち物　Esc：中断メニュー', '家具に向かって歩き続けると押せる'];
+      ? [
+        modern ? '左のスティック：倒した方向へ移動（大きく倒すと走る）' : '左のスティック：上で前進、左右で旋回（ラジコン操作）',
+        '［アクション］：調べる・開ける・取る・攻撃（状況に応じて変わる）',
+        '［持物］：持ち物　［≡］：メニュー',
+        '家具は、向かって歩き続けると押せる',
+      ]
+      : [
+        modern ? '方向キー / WASD：画面の向きに合わせて移動' : '方向キー / WASD：↑前進 ↓後退 ←→旋回（ラジコン操作）',
+        'Shift を押しながら移動：走る',
+        'Space / Z / Enter：調べる・開ける・取る・攻撃（状況に応じて変わる）',
+        'I / Tab：持ち物　Esc：メニュー',
+        '家具は、向かって歩き続けると押せる',
+      ];
     return this.say(lines.join('\n'));
   }
 
@@ -837,7 +895,7 @@ export class Game {
     const s = this.settings;
     const on = (b) => (b ? 'オン' : 'オフ');
     const items = [
-      { label: '操作方式', value: () => (s.controls === 'classic' ? 'クラシック' : 'モダン'), onChange: () => { s.controls = s.controls === 'classic' ? 'modern' : 'classic'; } },
+      { label: '操作方式', value: () => (s.controls === 'classic' ? 'ラジコン' : 'モダン'), onChange: () => { s.controls = s.controls === 'classic' ? 'modern' : 'classic'; } },
       { label: '解像度', value: () => (s.res === 'low' ? '320×240' : '640×480'), onChange: () => { s.res = s.res === 'low' ? 'high' : 'low'; this.applySettings(); } },
       { label: 'ディザリング', value: () => on(s.dither), onChange: () => { s.dither = !s.dither; this.applySettings(); } },
       { label: '影', value: () => ['オフ', '低', '高'][s.shadows], onChange: (d) => { s.shadows = (s.shadows + (d > 0 ? 1 : 2)) % 3; this.applySettings(); } },
@@ -967,8 +1025,7 @@ export class Game {
     this.ui.hud.classList.remove('hidden');
     this.enterRoom(d.room, null, { quiet: true });
     this.player.place(d.x, d.z, d.rot);
-    const p = this.player.pos;
-    this.director.update(new THREE.Vector3(p.x, p.y + 1.1, p.z), 0, true);
+    this.director.update(this.player.pos, 0, true);
     if (d.escape) this.escape = { t: Math.max(d.escape, 35) }; // never restore into a hopeless countdown
     this.checkpoint = this.serialize();
     this.audio.music(this.escape ? 'escape' : null);
@@ -1002,6 +1059,84 @@ export class Game {
     return !this.modals.length && !this.transitioning && this.player.busy === 0 && !this.locked;
   }
 
+  // Debug: walk a serpentine path over every reachable spot of a room and
+  // count how often the player ends up off-screen or hidden. legacy=true
+  // reproduces the old behaviour (floor-zone shots only) for comparison.
+  debugSweep(roomId, legacy = false, step = 0.5) {
+    this.debugStart(roomId, null, { flags: { lampLit: true, lampOil: true } });
+    const room = this.room;
+    for (const m of room.monsters) { m.hidden = true; m.root.visible = false; }
+    const [x0, z0, x1, z1] = room.camRect;
+    const d = this.director;
+    const free = (x, z) => {
+      const y = room.floorY(x, z);
+      for (const b of room.colliders) {
+        if (!b.enabled || !b.solid) continue;
+        if (y + 1.6 < b.y0 || y > b.y1 - 0.3) continue;
+        if (b.distance(x, z) < 0.28) return false;
+      }
+      return true;
+    };
+    // grid of free spots
+    const nx = Math.floor((x1 - x0 - 0.6) / step) + 1, nz = Math.floor((z1 - z0 - 0.6) / step) + 1;
+    const cell = (i, j) => [x0 + 0.3 + i * step, z0 + 0.3 + j * step];
+    const ok = [];
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const [x, z] = cell(i, j); ok[j * nx + i] = free(x, z); }
+    // flood fill from the entries (stairs connect via the ramps' heights)
+    const seen = new Uint8Array(nx * nz);
+    const q = [];
+    for (const e of Object.values(room.entries)) {
+      const i = Math.round((e.x - x0 - 0.3) / step), j = Math.round((e.z - z0 - 0.3) / step);
+      if (i >= 0 && j >= 0 && i < nx && j < nz && ok[j * nx + i] && !seen[j * nx + i]) { seen[j * nx + i] = 1; q.push([i, j]); }
+    }
+    while (q.length) {
+      const [i, j] = q.pop();
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const a = i + di, b = j + dj;
+        if (a < 0 || b < 0 || a >= nx || b >= nz) continue;
+        const k = b * nx + a;
+        if (seen[k] || !ok[k]) continue;
+        const [xa, za] = cell(i, j), [xb, zb] = cell(a, b);
+        if (Math.abs(room.floorY(xa, za) - room.floorY(xb, zb)) > 0.5) continue;
+        if (!free((xa + xb) / 2, (za + zb) / 2)) continue;
+        seen[k] = 1;
+        q.push([a, b]);
+      }
+    }
+    const pts = [];
+    for (let j = 0; j < nz; j++) {
+      const row = [];
+      for (let i = 0; i < nx; i++) if (seen[j * nx + i]) row.push(cell(i, j));
+      if (j % 2) row.reverse();
+      pts.push(...row);
+    }
+    const fails = [];
+    const cuts0 = d.cutCount;
+    let follow = 0;
+    const cam = d.cam;
+    const probe = { cam, pos: cam.position };
+    const saved = d.shots;
+    if (legacy) d.shots = d.shots.filter((sh) => !sh.auto);
+    for (const [x, z] of pts) {
+      this.player.place(x, z, this.player.rot);
+      if (legacy) {
+        // old rule: keep the current shot while inside its zone, else the zone's shot
+        const cur = d.current;
+        const zs = cur && cur.contains(x, z) ? cur : d.zoneShot(x, z) || cur || d.shots[0];
+        d.forced = zs;
+      }
+      for (let k = 0; k < 4; k++) d.update(this.player.pos, 0.1);
+      cam.updateMatrixWorld(true);
+      cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
+      const e = d.evaluate(probe, d.setPoints(this.player.pos), {});
+      if (d.current === d.follow) follow++;
+      if (!(e.frame >= 2 && e.vis >= 2)) fails.push(`${x.toFixed(1)},${z.toFixed(1)}:${d.current.id}:f${e.frame}v${e.vis}`);
+    }
+    d.forced = null;
+    d.shots = saved;
+    return { room: roomId, points: pts.length, fails: fails.length, follow, cuts: d.cutCount - cuts0, auto: room.autoShots.map((sh) => sh.id).join(','), sample: fails.slice(0, 6) };
+  }
+
   // Debug: frame a given camera shot of a room (for screenshots).
   debugShot(roomId, i) {
     if (!this.room || this.room.id !== roomId) this.debugStart(roomId, null);
@@ -1012,9 +1147,8 @@ export class Game {
     for (const [px, pz] of poly) { x += px; z += pz; }
     x /= poly.length; z /= poly.length;
     this.player.place(x, z, this.player.rot);
-    this.director.current = s;
+    this.director.forced = s;
     this.director.update(this.player.pos, 0, true);
-    this.director.current = s;
     this.onCut(s);
     return s.id;
   }

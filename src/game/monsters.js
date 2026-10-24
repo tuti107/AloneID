@@ -1,6 +1,6 @@
 // Monster actors and their AI.
 import * as THREE from 'three';
-import { Animator, blobShadow } from './rig.js';
+import { Animator, blobShadow, addXray } from './rig.js';
 import * as CH from './characters.js';
 import { resolveCircle, separateCircles } from '../engine/collision.js';
 import { angleDiff, approachAngle, damp, clamp } from '../engine/util.js';
@@ -46,10 +46,14 @@ export class Monster {
     this.sightOverride = o.sight;
     this.leash = o.leash || null; // optional rect the monster stays in
     this.growlT = 2 + Math.random() * 4;
+    this.xray = addXray(this.root, 0xa83a2a);
+    this.xray.visible = false;
     this.sync();
   }
 
   get alive() { return this.state !== 'dead'; }
+  // chasing or fighting the player
+  get hunting() { return this.state === 'chase' || this.state === 'attack' || this.state === 'leap' || this.state === 'hurt'; }
   get player() { return this.game.player; }
 
   setState(s) {
@@ -78,6 +82,8 @@ export class Monster {
 
   update(dt) {
     if (this.hidden) return;
+    // silhouette through walls only while it is hunting you
+    this.xray.visible = this.hunting;
     this.stateT += dt;
     this.attackCd -= dt;
     const p = this.player;
