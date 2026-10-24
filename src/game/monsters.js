@@ -365,12 +365,13 @@ export class Ghost extends Monster {
   }
   setOpacity(a) {
     this.opacity = a;
-    this.parts.ghostMat.opacity = a;
+    for (const m of this.parts.ghostMats) m.opacity = a;
   }
   update(dt) {
     this.flick += dt;
     const base = this.opacity;
-    this.parts.ghostMat.opacity = base * (0.85 + Math.sin(this.flick * 13) * 0.08 + Math.sin(this.flick * 3.1) * 0.07);
+    const flicker = base * (0.85 + Math.sin(this.flick * 13) * 0.08 + Math.sin(this.flick * 3.1) * 0.07);
+    for (const m of this.parts.ghostMats) m.opacity = flicker;
     if (this.state === 'seated') {
       this.stateT += dt;
       this.anim.play('sit');

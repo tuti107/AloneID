@@ -1,9 +1,10 @@
 // Jointed low-poly humanoids and a small procedural animation system.
 // Poses are flat Float32Arrays: 3 euler angles per joint + root offset xyz.
 import * as THREE from 'three';
-import { frustum } from '../engine/geom.js';
+import { loft, pelvisRings, torsoRings, neckRings, upperArmRings, foreArmRings, handGeo, thighRings, shinRings, shoeGeo, headGeo, earGeo } from './body.js';
 import { C, M } from './mats.js';
 import { tex } from '../engine/textures.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export const JOINTS = ['hips', 'spine', 'neck', 'lShoulder', 'lElbow', 'rShoulder', 'rElbow', 'lHip', 'lKnee', 'rHip', 'rKnee'];
 export const J = Object.fromEntries(JOINTS.map((n, i) => [n, i * 3]));
@@ -29,7 +30,7 @@ const DEFAULT_SPEC = {
   neckLen: 0.1,
   head: [0.19, 0.23, 0.21],
   shoulderX: 0.2,
-  upperArm: 0.3, foreArm: 0.27, armW: 0.1, handW: 0.08,
+  upperArm: 0.3, foreArm: 0.27, armW: 0.105, handW: 0.08,
   hipX: 0.095,
   thigh: 0.45, shin: 0.44, legW: 0.15,
   foot: [0.11, 0.08, 0.25],
@@ -37,11 +38,13 @@ const DEFAULT_SPEC = {
   face: null,
 };
 
-// Build a humanoid. extras(parts, spec) can add accessories.
+// Build a humanoid. extras(parts, spec) can add accessories; parts.surf
+// holds the rings of the body parts so clothing can follow them.
 export function buildHumanoid(spec0 = {}) {
   const spec = { ...DEFAULT_SPEC, ...spec0, colors: { ...DEFAULT_SPEC.colors, ...(spec0.colors || {}) } };
   const col = spec.colors;
-  const matOf = (c) => (typeof c === 'number' ? C(c, spec.matOpts || {}) : c);
+  // smooth-shaded: the parts are rounded now, not boxes
+  const matOf = (c) => (typeof c === 'number' ? C(c, { ...(spec.matOpts || {}), flat: false }) : c);
   const root = new THREE.Group();
   const joints = {};
   const mk = (name, parent, x, y, z) => {
@@ -53,59 +56,132 @@ export function buildHumanoid(spec0 = {}) {
     return g;
   };
   const mesh = (geo, m, parent, x = 0, y = 0, z = 0) => {
-    const me = new THREE.Mesh(geo, matOf(m));
+    const me = new THREE.Mesh(geo, Array.isArray(m) ? m : matOf(m));
     me.position.set(x, y, z);
     me.castShadow = true;
     me.receiveShadow = true;
     parent.add(me);
     return me;
   };
+  const surf = {
+    pelvis: pelvisRings(spec), torso: torsoRings(spec),
+    upperArm: upperArmRings(spec), foreArm: foreArmRings(spec), thigh: thighRings(spec), shin: shinRings(spec),
+  };
   const hips = mk('hips', root, 0, spec.hipY, 0);
-  mesh(frustum(spec.pelvis[0], spec.pelvis[2], spec.waist[0], spec.waist[1], spec.pelvis[1]), col.pelvis, hips, 0, -spec.pelvis[1] * 0.6, 0);
+  mesh(loft(surf.pelvis, 12), col.pelvis, hips);
   const spine = mk('spine', hips, 0, 0.03, 0);
-  const torso = mesh(frustum(spec.waist[0], spec.waist[1], spec.chest[0], spec.chest[1], spec.torsoLen), col.torso, spine);
+  mesh(loft(surf.torso, 12), col.torso, spine);
   const neck = mk('neck', spine, 0, spec.torsoLen, 0);
-  mesh(frustum(0.09, 0.09, 0.08, 0.08, spec.neckLen + 0.02), col.neck ?? col.skin, neck, 0, -0.02, 0);
+  mesh(loft(neckRings(spec), 8), col.neck ?? col.skin, neck);
+  // head: sculpted, face projected on the front, hair pushed out a little
   const [hw, hh, hd] = spec.head;
-  let headMat;
+  const hairCol = col.hair ?? col.skin;
+  const hs = { w: hw, h: hh, d: hd, ...(spec.headShape || {}) };
+  if (spec.hair !== false && col.hair !== undefined) hs.hair = { front: 0.5, side: 0.16, back: -0.5, thick: 0.007, ...(spec.hair || {}) };
+  const skinM = matOf(col.skin);
+  let faceM = skinM;
   if (spec.face) {
-    const skin = matOf(col.skin);
-    const faceM = new THREE.MeshLambertMaterial({ map: tex(spec.face), flatShading: true, ...(spec.faceOpts || {}) });
-    headMat = [skin, skin, matOf(col.hair ?? col.skin), skin, faceM, matOf(col.hair ?? col.skin)];
-  } else headMat = matOf(col.skin);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(hw, hh, hd), headMat);
-  head.position.set(0, spec.neckLen + hh / 2, 0.01);
-  head.castShadow = true;
-  neck.add(head);
-  const parts = { root, joints, head, torso, spec };
+    if (skinM.isMaterial && typeof col.skin !== 'number') {
+      faceM = skinM.clone();
+      faceM.map = tex(spec.face);
+      if (faceM.blending === THREE.AdditiveBlending) faceM.emissiveMap = faceM.map;
+    } else {
+      faceM = new THREE.MeshLambertMaterial({ map: tex(spec.face), ...(spec.faceOpts || {}) });
+      if (spec.faceGlow) { faceM.emissiveMap = tex(spec.faceGlow); faceM.emissive = new THREE.Color(0xffffff); }
+    }
+  }
+  const head = mesh(headGeo(hs), [faceM, skinM, matOf(hairCol)], neck, 0, spec.neckLen + hh / 2 - 0.02, 0.01);
+  head.receiveShadow = false;
+  if (spec.ears !== false) for (const sx of [-1, 1]) mesh(earGeo(hs, sx), col.skin, head);
+  const parts = { root, joints, head, spec, surf, faceMat: faceM };
   for (const side of ['l', 'r']) {
     const sx = side === 'l' ? 1 : -1;
     const sh = mk(side + 'Shoulder', spine, sx * spec.shoulderX, spec.torsoLen - 0.06, 0);
-    mesh(frustum(spec.armW, spec.armW, spec.armW * 0.85, spec.armW * 0.85, -spec.upperArm), col.arms, sh);
+    mesh(loft(surf.upperArm, 8), col.arms, sh);
     const el = mk(side + 'Elbow', sh, 0, -spec.upperArm, 0);
-    mesh(frustum(spec.armW * 0.85, spec.armW * 0.85, spec.armW * 0.75, spec.armW * 0.75, -spec.foreArm), col.forearms ?? col.arms, el);
-    const hand = mesh(frustum(spec.handW, spec.handW * 0.6, spec.handW * 0.9, spec.handW * 0.4, -0.1), col.hands ?? col.skin, el, 0, -spec.foreArm, 0);
-    parts[side + 'Hand'] = hand;
+    mesh(loft(surf.foreArm, 8), col.forearms ?? col.arms, el);
+    mesh(handGeo(spec, sx), col.hands ?? col.skin, el, 0, -spec.foreArm, 0);
     const grip = new THREE.Group();
     grip.position.set(0, -spec.foreArm - 0.07, 0.0);
     el.add(grip);
     parts[side + 'Grip'] = grip;
     const hp = mk(side + 'Hip', hips, sx * spec.hipX, 0, 0);
-    mesh(frustum(spec.legW, spec.legW * 1.05, spec.legW * 0.85, spec.legW * 0.85, -spec.thigh), col.legs, hp);
+    mesh(loft(surf.thigh, 8), col.legs, hp);
     const kn = mk(side + 'Knee', hp, 0, -spec.thigh, 0);
-    mesh(frustum(spec.legW * 0.85, spec.legW * 0.85, spec.legW * 0.7, spec.legW * 0.7, -spec.shin), col.shins ?? col.legs, kn);
-    const [fw, fh, fd] = spec.foot;
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, fd), matOf(col.shoes));
-    foot.position.set(0, -spec.shin - fh / 2 + 0.02, fd * 0.25);
-    foot.castShadow = true;
-    kn.add(foot);
-    parts[side + 'Foot'] = foot;
+    mesh(loft(surf.shin, 8), col.shins ?? col.legs, kn);
+    // sole on the floor: the knee sits hipY - thigh above it
+    mesh(shoeGeo(spec), col.shoes, kn, 0, -(spec.hipY - spec.thigh) + 0.004, 0);
   }
   if (spec.extras) spec.extras(parts, spec, { mesh, matOf });
+  weld(parts);
   // order joints for pose application
   parts.list = JOINTS.map((n) => joints[n]);
   parts.hipBase = hips.position.clone();
   return parts;
+}
+
+// Weld everything riding on each joint into one mesh per material, plain
+// colours turned into vertex colours: a body costs about a dozen draw
+// calls (and shadow passes) instead of fifty. The head keeps its face
+// material, and what the hands hold stays separate.
+const VC_MATS = {};
+function vcMaterial(side) {
+  return (VC_MATS[side] ??= new THREE.MeshLambertMaterial({ vertexColors: true, side }));
+}
+function weld(parts) {
+  parts.root.updateMatrixWorld(true);
+  const joints = new Set(Object.values(parts.joints));
+  const keep = new Set([parts.lGrip, parts.rGrip]);
+  const inv = new THREE.Matrix4();
+  for (const j of joints) {
+    const list = [];
+    const walk = (o) => {
+      for (const c of o.children) {
+        if (joints.has(c) || keep.has(c)) continue;
+        if (c.isMesh && !Array.isArray(c.material)) list.push(c);
+        walk(c);
+      }
+    };
+    walk(j);
+    // plain Lambert colours share one vertex-coloured material; anything
+    // else (textures, ghosts, shine) merges only with its own material
+    const groups = new Map();
+    for (const m of list) {
+      const mat = m.material;
+      const plain = mat.isMeshLambertMaterial && !mat.map && !mat.transparent && mat.emissive.getHex() === 0;
+      const key = plain ? 'vc' + mat.side : mat;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(m);
+    }
+    inv.copy(j.matrixWorld).invert();
+    for (const [key, ms] of groups) {
+      const plain = typeof key === 'string';
+      if (ms.length < 2 && !plain) continue;
+      const geos = ms.map((m) => {
+        const src = m.geometry;
+        const g = new THREE.BufferGeometry();
+        for (const a of ['position', 'normal', 'uv']) {
+          const at = src.attributes[a];
+          g.setAttribute(a, at ? at.clone() : new THREE.Float32BufferAttribute(new Float32Array(src.attributes.position.count * 2), 2));
+        }
+        if (!src.attributes.normal) g.computeVertexNormals();
+        const n = g.attributes.position.count;
+        g.setIndex(src.index ? src.index.clone() : [...Array(n).keys()]);
+        if (plain) {
+          const c = m.material.color, col = new Float32Array(n * 3);
+          for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
+          g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+        }
+        g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+        return g;
+      });
+      const merged = new THREE.Mesh(mergeGeometries(geos), plain ? vcMaterial(ms[0].material.side) : key);
+      merged.castShadow = true;
+      merged.receiveShadow = true;
+      j.add(merged);
+      for (const m of ms) m.parent.remove(m);
+    }
+  }
 }
 
 // X-ray silhouette: a stippled copy of an actor drawn only where walls or
@@ -154,7 +230,12 @@ export function brighten(root, k = 0.18) {
       const c = m.clone();
       if (!c.emissive) return c;
       if (c.map) { c.emissiveMap = c.map; c.emissive.setScalar(k); }
-      else c.emissive.copy(c.color).multiplyScalar(k);
+      else if (c.vertexColors) {
+        c.emissive.setScalar(k);
+        c.onBeforeCompile = (sh) => {
+          sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= vColor.rgb;');
+        };
+      } else c.emissive.copy(c.color).multiplyScalar(k);
       return c;
     };
     o.material = Array.isArray(o.material) ? o.material.map(boost) : boost(o.material);
@@ -524,10 +605,11 @@ export function humanClips() {
         setJ(p, 'hips', -1.45 * b, 0, 0.05 * b);
         setJ(p, 'spine', 0.35 * a * (1 - b) - 0.05 * b, 0, 0);
         setJ(p, 'neck', 0.4 * a * (1 - b) - 0.2 * b, 0.5 * b, 0);
-        setJ(p, 'lHip', -0.8 * a * (1 - b) + 1.2 * b, 0, 0.1 * b);
-        setJ(p, 'rHip', -0.5 * a * (1 - b) + 1.35 * b, 0, -0.15 * b);
-        setJ(p, 'lKnee', 1.2 * a * (1 - b) + 0.3 * b);
-        setJ(p, 'rKnee', 0.9 * a * (1 - b) + 0.1 * b);
+        // flat on his back: legs along the floor, one knee up
+        setJ(p, 'lHip', -0.8 * a * (1 - b) - 0.08 * b, 0, 0.1 * b);
+        setJ(p, 'rHip', -0.5 * a * (1 - b) - 0.3 * b, 0, -0.15 * b);
+        setJ(p, 'lKnee', 1.9 * a * (1 - b) + 0.15 * b);
+        setJ(p, 'rKnee', 1.6 * a * (1 - b) + 0.6 * b);
         p[ROOT + 1] = -0.35 * a - 0.42 * b;
         p[ROOT + 2] = -0.35 * b;
       },
@@ -638,10 +720,11 @@ export function zombieClips(o = {}) {
         setJ(p, 'hips', 1.45 * b, 0.2 * b, 0);
         setJ(p, 'spine', 0.3 * a * (1 - b) + 0.05 * b);
         setJ(p, 'neck', 0.5 * a * (1 - b) - 0.3 * b, 0.6 * b, 0);
-        setJ(p, 'lHip', -1.0 * a * (1 - b) - 1.3 * b);
-        setJ(p, 'rHip', -0.7 * a * (1 - b) - 1.4 * b);
-        setJ(p, 'lKnee', 1.3 * a * (1 - b) + 0.2 * b);
-        setJ(p, 'rKnee', 1.0 * a * (1 - b) + 0.4 * b);
+        // face down: legs stretched out behind along the floor
+        setJ(p, 'lHip', -1.0 * a * (1 - b) + 0.12 * b);
+        setJ(p, 'rHip', -0.7 * a * (1 - b) + 0.1 * b);
+        setJ(p, 'lKnee', 2.0 * a * (1 - b) + 0.2 * b);
+        setJ(p, 'rKnee', 1.7 * a * (1 - b) + 0.45 * b);
         p[ROOT + 1] = -0.4 * a - 0.38 * b;
         p[ROOT + 2] = 0.4 * b;
       },
@@ -654,9 +737,12 @@ export function zombieClips(o = {}) {
         setJ(p, 'hips', -1.45 * k, 0, 0);
         setJ(p, 'lShoulder', -0.5 * k, 0, 0.5 * k + 0.15);
         setJ(p, 'rShoulder', -0.5 * k, 0, -0.5 * k - 0.15);
-        setJ(p, 'lHip', 1.0 * k);
-        setJ(p, 'rHip', 1.2 * k);
-        setJ(p, 'lKnee', 0.6 * k + 0.1);
+        // legs flat at first, knees drawn up on the way to standing
+        const mid = k * (1 - k);
+        setJ(p, 'lHip', -0.1 * k - 1.4 * mid);
+        setJ(p, 'rHip', -0.3 * k - 1.2 * mid);
+        setJ(p, 'lKnee', 0.1 + 0.15 * k + 1.6 * mid);
+        setJ(p, 'rKnee', 0.6 * k + 1.4 * mid);
         setJ(p, 'spine', hunch * (1 - k), 0, 0);
         setJ(p, 'neck', 0.3 * (1 - k), 0, 0.3 * (1 - k));
         p[ROOT + 1] = -0.77 * k;

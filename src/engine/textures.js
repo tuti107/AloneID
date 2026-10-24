@@ -935,24 +935,66 @@ function hauntedMirror(withFace) {
   return c;
 }
 
-function face({ skin, eye = '#111', mouth = 'rgba(60,20,20,0.8)', brows = '#2a1a10', mustache = null, dead = false }) {
-  const [c, g] = mk(16, 16);
-  g.fillStyle = skin;
-  g.fillRect(0, 0, 16, 16);
-  g.fillStyle = brows;
-  g.fillRect(3, 5, 4, 1);
-  g.fillRect(9, 5, 4, 1);
-  g.fillStyle = eye;
-  g.fillRect(4, 7, 2, dead ? 2 : 1);
-  g.fillRect(10, 7, 2, dead ? 2 : 1);
-  if (mustache) {
-    g.fillStyle = mustache;
-    g.fillRect(5, 11, 6, 1);
+// Faces are projected from the front onto the sculpted heads (body.js), so
+// the features sit on fixed rows: brows 7, eyes 10-11, nose 13-19, mouth
+// 21-22, chin 28; eyes are centred on columns 9.5 and 21.5.
+// kind: 'man' | 'dead' | 'ghoul' | 'ghost'. glow:true paints only what
+// shines (the eyes), for an emissive map.
+function face({ skin, eye = '#e6dece', iris = '#3a2616', brows = '#2a1a10', lips = '#8a5048', mouth = '#2a0a08', mustache = null, kind = 'man', female = false, glow = false }) {
+  const [c, g] = mk(32, 32);
+  const px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+  px(0, 0, 32, 32, glow ? '#000' : skin);
+  const dead = kind !== 'man';
+  if (glow) {
+    if (kind === 'ghoul') { px(7, 9, 5, 3, eye); px(20, 9, 5, 3, eye); }
+    else if (kind === 'dead') { px(9, 10, 2, 2, eye); px(21, 10, 2, 2, eye); }
+    c.opts = { repeat: false };
+    return c;
   }
-  g.fillStyle = mouth;
-  g.fillRect(6, 13, 4, 1);
-  g.fillStyle = 'rgba(0,0,0,0.15)';
-  g.fillRect(7, 8, 2, 3);
+  if (kind === 'ghost') {
+    // hollow eyes and a moaning mouth: black reads as see-through when added
+    px(7, 8, 5, 5, '#000'); px(20, 8, 5, 5, '#000');
+    px(8, 7, 3, 1, '#000'); px(21, 7, 3, 1, '#000');
+    px(14, 19, 4, 6, '#000'); px(15, 18, 2, 1, '#000'); px(15, 25, 2, 1, '#000');
+    c.opts = { repeat: false };
+    return c;
+  }
+  // soft modelling: eye sockets, sides of the nose, under the lip and chin
+  const shade = (a) => `rgba(20,8,4,${a})`;
+  px(7, 9, 6, 4, shade(dead ? 0.35 : 0.12)); px(19, 9, 6, 4, shade(dead ? 0.35 : 0.12));
+  px(8, 13, 3, 1, shade(dead ? 0.25 : 0.06)); px(21, 13, 3, 1, shade(dead ? 0.25 : 0.06));
+  px(14, 13, 1, 5, shade(0.1)); px(17, 13, 1, 5, shade(0.1));
+  px(13, 19, 6, 1, shade(0.18));
+  px(14, 19, 1, 1, shade(0.5)); px(17, 19, 1, 1, shade(0.5));
+  px(12, 24, 8, 1, shade(0.1));
+  px(10, 29, 12, 3, shade(0.12));
+  if (dead) {
+    px(5, 14, 3, 6, shade(0.18)); px(24, 14, 3, 6, shade(0.18)); // hollow cheeks
+    px(18, 3, 2, 6, 'rgba(40,10,10,0.35)'); // a dark vein
+  }
+  // brows
+  if (kind !== 'ghoul') { px(7, 7, 5, 1, brows); px(20, 7, 5, 1, brows); if (!female) { px(11, 8, 1, 1, brows); px(20, 8, 1, 1, brows); } }
+  // eyes
+  if (kind === 'ghoul') {
+    px(7, 9, 5, 3, eye); px(20, 9, 5, 3, eye);
+    px(9, 10, 1, 1, '#000'); px(22, 10, 1, 1, '#000');
+  } else {
+    px(8, 10, 4, 2, eye); px(20, 10, 4, 2, eye);
+    if (kind === 'man') { px(9, 10, 2, 2, iris); px(21, 10, 2, 2, iris); px(9, 10, 1, 1, '#000'); px(22, 10, 1, 1, '#000'); }
+    else { px(9, 10, 2, 2, 'rgba(255,250,210,0.9)'); px(21, 10, 2, 2, 'rgba(255,250,210,0.9)'); }
+    if (female) { px(7, 9, 1, 1, brows); px(24, 9, 1, 1, brows); }
+  }
+  // mouth
+  if (kind === 'ghoul') {
+    px(9, 21, 14, 3, mouth);
+    for (let x = 9; x < 23; x += 2) px(x, 21, 1, 1, '#d8d0b0');
+    for (let x = 10; x < 23; x += 3) px(x, 23, 1, 1, '#c8c0a0');
+  } else {
+    if (mustache) px(11, 19, 10, 2, mustache);
+    px(12, 21, 8, 1, dead ? mouth : lips);
+    px(13, 22, 6, 1, dead ? lips : shade(0.2));
+    if (female && !dead) px(13, 21, 6, 1, lips);
+  }
   c.opts = { repeat: false };
   return c;
 }
@@ -1029,10 +1071,17 @@ const BUILDERS = {
   mirror: () => mirror(),
   mirrorHaunt: () => hauntedMirror(true),
   mirrorIII: () => hauntedMirror(false),
-  facePlayer: () => face({ skin: '#c89a78', mustache: '#3a2414' }),
-  faceZombie: () => face({ skin: '#7a8a6a', eye: '#d8d0a0', mouth: '#2a0808', dead: true }),
-  faceSilas: () => face({ skin: '#9aa08e', eye: '#e8e0c0', mouth: '#300808', brows: '#c0c0c0', dead: true }),
-  faceCook: () => face({ skin: '#b09a88', eye: '#f0e0a0', mouth: '#500a0a', brows: '#3a2a1a', dead: true }),
+  facePlayer: () => face({ skin: '#c89a78', mustache: '#3a2414', brows: '#2a1a10', lips: '#9a5e50' }),
+  faceZombie: () => face({ skin: '#7a8a6a', eye: '#c8c090', lips: '#4a3a3a', mouth: '#1a0606', brows: '#3a3a30', kind: 'dead' }),
+  faceZombieGlow: () => face({ eye: '#d8d090', kind: 'dead', glow: true }),
+  faceMaid: () => face({ skin: '#7e8c72', eye: '#c8c090', lips: '#4a2a30', mouth: '#1a0606', brows: '#2a1a12', kind: 'dead', female: true }),
+  faceSilas: () => face({ skin: '#9aa08e', eye: '#e0d8b8', lips: '#4a4040', mouth: '#2a0606', brows: '#c8c8c0', kind: 'dead' }),
+  faceSilasGlow: () => face({ eye: '#f0e8c0', kind: 'dead', glow: true }),
+  faceCook: () => face({ skin: '#b09a88', eye: '#e8d8a0', lips: '#6a3a30', mouth: '#3a0606', brows: '#3a2a1a', kind: 'dead' }),
+  faceCookGlow: () => face({ eye: '#ffe080', kind: 'dead', glow: true }),
+  faceGhoul: () => face({ skin: '#6e6e60', eye: '#ffd040', mouth: '#200808', kind: 'ghoul' }),
+  faceGhoulGlow: () => face({ eye: '#ffd040', kind: 'ghoul', glow: true }),
+  faceGhost: () => face({ skin: '#ffffff', kind: 'ghost' }),
 };
 
 function plainWood(seed, base, dark) {

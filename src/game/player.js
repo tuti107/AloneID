@@ -76,7 +76,7 @@ export class Player {
     this.muzzle.position.set(0, -0.2, 0.05);
     parts.rGrip.add(this.muzzle);
     brighten(this.root);
-    addXray(this.root, 0xf0d898);
+    this.xray = addXray(this.root, 0xf0d898);
   }
 
   place(x, z, rot) {
@@ -114,6 +114,8 @@ export class Player {
     const g = this.game;
     const input = g.input;
     const room = g.room;
+    // no silhouette for a body on the floor (its feet go through it)
+    this.xray.visible = this.state !== 'dead';
     this.stateT += dt;
     this.invuln = Math.max(0, this.invuln - dt);
     this.comboT = Math.max(0, this.comboT - dt);
@@ -377,6 +379,7 @@ export class Player {
   die() {
     this.state = 'dead';
     this.stateT = 0;
+    this.xray.visible = false;
     this.anim.play('death', { restart: true, fade: 0.1 });
     this.game.onPlayerDeath();
   }
