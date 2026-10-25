@@ -170,6 +170,12 @@ export class Room {
   // Flat decal on the floor (rugs, blood, runner).
   decal(m, x, z, w, d, ry = 0, y = 0.005) {
     const material = typeof m === 'string' && m[0] !== '#' ? M(m, { transparent: m === 'blood', alphaTest: m === 'blood' ? 0.3 : 0, ts: [w, d] }) : mat(m);
+    // Millimetres above the floor isn't enough on every GPU: also pull it
+    // forward in depth (a step further per millimetre of height), so it
+    // never flickers against the floor or a rug beneath it.
+    material.polygonOffset = true;
+    material.polygonOffsetFactor = -1;
+    material.polygonOffsetUnits = -(2 + Math.round(y * 1000));
     const g = new THREE.PlaneGeometry(w, d);
     const mesh = new THREE.Mesh(g, material);
     mesh.rotation.set(-Math.PI / 2, 0, ry);
@@ -205,13 +211,16 @@ export class Room {
     const tag = o.tag;
     const parent = tag ? this.dynamic : this.static;
     const opens = openings.slice().sort((a, b) => a.at - b.at);
-    const solid = [];
-    let s = 0;
-    for (const op of opens) {
-      solid.push([s, op.at - op.w / 2]);
-      s = op.at + op.w / 2;
+    // Vertical strips between opening edges, each with the openings crossing
+    // it, so stacked openings (a window above a window) cut each other's wall
+    // instead of bricking each other up.
+    const cuts = [...new Set([0, L, ...opens.flatMap((op) => [op.at - op.w / 2, op.at + op.w / 2])])]
+      .map((c) => Math.min(L, Math.max(0, c))).sort((a, b) => a - b);
+    const strips = [];
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      const a = cuts[i], b = cuts[i + 1], m = (a + b) / 2;
+      if (b - a > 0.001) strips.push({ a, b, holes: opens.filter((op) => Math.abs(m - op.at) < op.w / 2).map((op) => [op.sill || 0, (op.sill || 0) + op.h]) });
     }
-    solid.push([s, L]);
 
     const piece = (a, b, y0, y1, material, depth, inset) => {
       const len = b - a;
@@ -234,38 +243,36 @@ export class Room {
       return mesh;
     };
 
-    for (const [a, b] of solid) piece(a, b, 0, h, wm, thick, 0);
-    for (const op of opens) {
-      const top = (op.sill || 0) + op.h;
-      piece(op.at - op.w / 2, op.at + op.w / 2, top, h, wm, thick, 0);
-      if (op.sill) piece(op.at - op.w / 2, op.at + op.w / 2, 0, op.sill, wm, thick, 0);
-    }
-    // wainscot / baseboard / crown
+    // The band y0..y1 along the whole wall minus the openings; neighbouring
+    // strips that come out the same share one piece.
+    const band = (y0, y1, material, depth, inset) => {
+      let run = null;
+      const flush = () => { if (run) for (const [p0, p1] of run.ys) piece(run.a, run.b, p0, p1, material, depth, inset); };
+      for (const st of strips) {
+        let ys = [[y0, y1]];
+        for (const [h0, h1] of st.holes) ys = ys.flatMap(([p0, p1]) => [[p0, Math.min(p1, h0)], [Math.max(p0, h1), p1]]);
+        ys = ys.filter(([p0, p1]) => p1 - p0 > 0.001);
+        const key = JSON.stringify(ys);
+        if (run && run.key === key) run.b = st.b;
+        else { flush(); run = { a: st.a, b: st.b, ys, key }; }
+      }
+      flush();
+    };
+
+    band(0, h, wm, thick, 0);
+    // wainscot / baseboard / crown. Two walls' trim overlaps in the corner
+    // they share, so trim on walls running along z sits 1.5 mm higher than
+    // along x: their tops and undersides there never coincide.
+    const alt = Math.abs(uz) > Math.abs(ux) ? 0.0015 : 0;
+    const skirt = o.baseboard !== false ? 0.14 + alt : 0;
     if (o.wainscot) {
-      const wsm = mat(o.wainscot);
-      const wh = o.wainscotH ?? 1.0;
-      const rail = mat(o.trim || 'woodBlack');
-      for (const [a, b] of solid) {
-        piece(a, b, 0, wh, wsm, 0.04, 0.04);
-        piece(a, b, wh, wh + 0.06, rail, 0.07, 0.07);
-      }
-      for (const op of opens) {
-        if (op.sill) {
-          const top = Math.min(op.sill, wh);
-          piece(op.at - op.w / 2, op.at + op.w / 2, 0, top, wsm, 0.04, 0.04);
-        }
-      }
+      const wh = (o.wainscotH ?? 1.0) + alt;
+      // from the skirting up, so the two never end flush at an opening
+      band(skirt, wh, mat(o.wainscot), 0.04, 0.04);
+      band(wh, wh + 0.06, mat(o.trim || 'woodBlack'), 0.07, 0.07);
     }
-    if (o.baseboard !== false) {
-      const bm = mat(o.trim || 'woodBlack');
-      for (const [a, b] of solid) piece(a, b, 0, 0.14, bm, 0.06, 0.06);
-      for (const op of opens) if (op.sill) piece(op.at - op.w / 2, op.at + op.w / 2, 0, 0.14, bm, 0.06, 0.06);
-    }
-    if (o.crown) {
-      const cm = mat(o.crown === true ? 'woodBlack' : o.crown);
-      for (const [a, b] of solid) piece(a, b, h - 0.12, h, cm, 0.1, 0.1);
-      for (const op of opens) piece(op.at - op.w / 2, op.at + op.w / 2, h - 0.12, h, cm, 0.1, 0.1);
-    }
+    if (skirt) band(0, skirt, mat(o.trim || 'woodBlack'), 0.06, 0.06);
+    if (o.crown) band(h - 0.12 - alt, h, mat(o.crown === true ? 'woodBlack' : o.crown), 0.1, 0.1);
     // colliders: whole wall unless an opening is passable
     if (o.collide !== false) {
       const cs = [];
@@ -433,28 +440,20 @@ export class Room {
       g.add(m);
     };
     const ft = 0.07;
-    fb(w + ft * 2, ft, 0.08, 0, sill + h + ft / 2, -thick + 0.06);
+    // frame: 3 mm proud of the opening's sides and head, never flush with the
+    // wall's own faces there (flush faces flicker against each other)
+    fb(w + ft * 2, ft, 0.08, 0, sill + h + ft / 2 - 0.003, -thick + 0.06);
     fb(w + ft * 2, ft, 0.08, 0, sill - ft / 2, -thick + 0.06);
-    fb(ft, h, 0.08, -w / 2 - ft / 2, sill + h / 2, -thick + 0.06);
-    fb(ft, h, 0.08, w / 2 + ft / 2, sill + h / 2, -thick + 0.06);
-    // mullions
+    fb(ft, h, 0.08, -w / 2 - ft / 2 + 0.003, sill + h / 2, -thick + 0.06);
+    fb(ft, h, 0.08, w / 2 + ft / 2 - 0.003, sill + h / 2, -thick + 0.06);
+    // mullions (the crossbar a touch shallower, so their faces don't coincide)
     fb(0.04, h, 0.04, 0, sill + h / 2, -thick + 0.07);
-    fb(w, 0.04, 0.04, 0, sill + h * 0.62, -thick + 0.07);
+    fb(w, 0.04, 0.036, 0, sill + h * 0.62, -thick + 0.07);
     if (o.panes !== false) {
       fb(w, 0.03, 0.03, 0, sill + h * 0.3, -thick + 0.07);
     }
-    // sill board
-    fb(w + 0.2, 0.05, thick + 0.12, 0, sill - 0.025, -thick / 2 + 0.06);
-    // reveal (inner sides of the opening)
-    const rv = mat(o.reveal || o.wallMat || 'plaster');
-    const rb = (bw, bh, bd, bx, by, bz) => {
-      const m = new THREE.Mesh(uvBox(bw, bh, bd, rv.userData.ts), rv);
-      m.position.set(bx, by, bz);
-      g.add(m);
-    };
-    rb(0.02, h, thick, -w / 2 - 0.01, sill + h / 2, -thick / 2);
-    rb(0.02, h, thick, w / 2 + 0.01, sill + h / 2, -thick / 2);
-    rb(w, 0.02, thick, 0, sill + h + 0.01, -thick / 2);
+    // sill board, its top a hair above the wall and frame beneath it
+    fb(w + 0.2, 0.05, thick + 0.12, 0, sill - 0.02, -thick / 2 + 0.06);
     if (o.curtains) {
       const cm = M(o.curtains, { side: THREE.DoubleSide });
       for (const sx of [-1, 1]) {
@@ -536,16 +535,17 @@ export class Room {
       parent.add(mesh);
       return mesh;
     };
-    // architrave
-    fb(g, frameM, 0.12, h + 0.12, 0.05, -w / 2 - 0.06, (h + 0.12) / 2, 0.02);
-    fb(g, frameM, 0.12, h + 0.12, 0.05, w / 2 + 0.06, (h + 0.12) / 2, 0.02);
+    // architrave, its inner edges 3 mm inside the opening so they never lie
+    // flush with the wainscot and skirting ends behind them
+    fb(g, frameM, 0.123, h + 0.12, 0.05, -w / 2 - 0.0585, (h + 0.12) / 2, 0.02);
+    fb(g, frameM, 0.123, h + 0.12, 0.05, w / 2 + 0.0585, (h + 0.12) / 2, 0.02);
     fb(g, frameM, w + 0.36, 0.14, 0.07, 0, h + 0.07, 0.03);
     // dark void behind the door
     const voidM = C(0x050403);
     fb(g, voidM, w, h, 0.02, 0, h / 2, -0.19);
     const reveal = mat(o.wallMat || 'plaster');
-    fb(g, reveal, 0.02, h, 0.2, -w / 2 + 0.01, h / 2, -0.1);
-    fb(g, reveal, 0.02, h, 0.2, w / 2 - 0.01, h / 2, -0.1);
+    fb(g, reveal, 0.02, h - 0.02, 0.2, -w / 2 + 0.01, (h - 0.02) / 2, -0.1);
+    fb(g, reveal, 0.02, h - 0.02, 0.2, w / 2 - 0.01, (h - 0.02) / 2, -0.1);
     fb(g, reveal, w, 0.02, 0.2, 0, h - 0.01, -0.1);
     const leaves = [];
     const makeLeaf = (lw, hingeX, dir) => {
@@ -584,9 +584,12 @@ export class Room {
         me.renderOrder = 1;
         g.add(me);
       };
-      const glowM = (op, map) => new THREE.MeshBasicMaterial({ color: o.spill, map, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
-      add(new THREE.PlaneGeometry(w - 0.06, 0.05), glowM(1), 0.006, -0.03);
-      add(new THREE.PlaneGeometry(w + 0.7, 1.0), glowM(0.5, spillTex()), 0.008, 0.5);
+      const glowM = (op, map) => new THREE.MeshBasicMaterial({
+        color: o.spill, map, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -12,
+      });
+      add(new THREE.PlaneGeometry(w - 0.06, 0.05), glowM(1), 0.012, -0.03);
+      add(new THREE.PlaneGeometry(w + 0.7, 1.0), glowM(0.5, spillTex()), 0.014, 0.5);
     }
     this.dynamic.add(g);
     const c = Math.cos(ry), s = Math.sin(ry);

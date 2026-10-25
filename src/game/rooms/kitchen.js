@@ -17,7 +17,7 @@ export default {
     });
     r.door(-4, 1.6, Math.PI / 2, { to: 'hall', entry: 'fromKitchen', label: '広間への扉', wallMat: 'plaster', panel: 'wood' });
     r.entry('fromHall', -3.4, 1.6, Math.PI / 2);
-    r.window(1.4, 3, Math.PI, { w: 1.1, h: 1.2, sill: 1.1, wallMat: 'plaster', intensity: 40, shadow: 'lo' });
+    r.window(1.4, 3, Math.PI, { w: 1.1, h: 1.2, sill: 1.1, intensity: 40, shadow: 'lo' });
 
     const stove = F.stove({ chimney: 2.1 });
     r.place(stove, 0.4, -2.62, 0, { collide: true });
@@ -25,7 +25,7 @@ export default {
     r.point(0.4 + sg[0], sg[1], -2.62 + sg[2], { color: 0xff5a20, intensity: 7, distance: 6, flicker: 0.3, shadow: 'lo' });
     // a pot still bubbling
     F.cy(r.static, 'iron', 0.2, 0.18, 0.28, 0.1, 0.89, -2.55, 10);
-    r.box(C(0x3a1a10), 0.36, 0.01, 0.36, 0.1, 1.16, -2.55, { cast: false });
+    F.cy(r.static, C(0x3a1a10), 0.185, 0.185, 0.006, 0.1, 1.17, -2.55, 10);
     const steam = [];
     for (let i = 0; i < 4; i++) {
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: M('smoke').map, color: 0xd0c8c0, transparent: true, opacity: 0.25, depthWrite: false }));

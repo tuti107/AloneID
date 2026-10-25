@@ -23,16 +23,21 @@ export default {
         n: [{ at: -6.1, w: 1.4, h: 2.4, sill: LAND }],
       },
     });
-    F.rug(r, 'carpetRunner', 0, 1.6, 1.6, 6.4, 0);
+    F.rug(r, 'carpetRunner', 0, 2.5, 1.6, 4.6, 0);
     F.rug(r, 'rugRed', 0, -1.4, 4.5, 3.2);
 
     // ---- grand staircase along the north wall, rising westward
     r.stairs(2.6, -4.25, 'w', { w: 1.4, len: 6.8, rise: LAND, steps: 20, mat: 'woodBlack', carpet: 'stairCarpet', sides: [1], collideSides: [1] });
-    // landing in the north-west corner
-    r.box('woodBlack', 2.8, 0.25, 1.8, -5.6, LAND - 0.25, -4.1);
+    // landing in the north-west corner; its body is pushed back in depth,
+    // as its top lies flush under the landing floor
+    const slab = M('woodBlack').clone();
+    slab.polygonOffset = true;
+    slab.polygonOffsetFactor = 1;
+    slab.polygonOffsetUnits = 2;
+    r.box(slab, 2.8, 0.25, 1.8, -5.6, LAND - 0.25, -4.1);
     r.floor(-7, -5, -4.2, -3.2, 'woodFloorDark', LAND);
     r.box('wainscot', 2.8, LAND - 0.25, 0.08, -5.6, 0, -3.24);
-    r.box('wainscot', 0.08, LAND - 0.25, 1.75, -4.24, 0, -4.12);
+    r.box('wainscot', 0.08, LAND - 0.25, 1.72, -4.24, 0, -4.14);
     r.platform(-7, -5, -4.2, -3.2, LAND);
     r.collider(-5.6, -4.1, 1.4, 0.9, 0, { y0: -1, y1: LAND - 0.1 });
     for (let i = 0; i < 9; i++) r.box('woodBlack', 0.05, 0.9, 0.05, -6.8 + i * 0.32, LAND, -3.28);
@@ -82,8 +87,8 @@ export default {
 
     // ---- windows
     for (const x of [-4.2, 4.2]) {
-      r.window(x, 5, Math.PI, { w: 1.2, h: 2.4, sill: 0.9, curtains: 'curtainRed', curtainW: 0.5, wallMat: 'wallpaperRed', intensity: 70, angle: 0.5, shadow: x < 0 ? 'lo' : false });
-      r.window(x, 5, Math.PI, { w: 1.0, h: 1.4, sill: 4.3, wallMat: 'wallpaperRed', intensity: 30, angle: 0.5, beam: false, light: false });
+      r.window(x, 5, Math.PI, { w: 1.2, h: 2.4, sill: 0.9, curtains: 'curtainRed', curtainW: 0.5, intensity: 70, angle: 0.5, shadow: x < 0 ? 'lo' : false });
+      r.window(x, 5, Math.PI, { w: 1.0, h: 1.4, sill: 4.3, intensity: 30, angle: 0.5, beam: false, light: false });
     }
 
     // ---- the great clock

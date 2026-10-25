@@ -17,7 +17,7 @@ export default {
     F.rug(r, 'rugBlue', 0, 0.4, 3.4, 2.6);
     r.door(1.8, 3, Math.PI, { to: 'corridor', entry: 'fromBedroom', label: '廊下への扉', wallMat: 'wallpaperBlue' });
     r.entry('fromCorridor', 1.8, 2.4, Math.PI);
-    r.window(3.5, -1.6, -Math.PI / 2, { w: 1.0, h: 1.7, sill: 0.8, curtains: 'curtainGreen', wallMat: 'wallpaperBlue', intensity: 60, shadow: 'hi' });
+    r.window(3.5, -1.6, -Math.PI / 2, { w: 1.0, h: 1.7, sill: 0.8, curtains: 'curtainGreen', intensity: 60, shadow: 'hi' });
 
     r.place(F.bed({ w: 1.7, l: 2.15 }), 0, -1.88, 0, { collide: true });
     r.interact({ id: 'bed', x: 0, z: -0.6, r: 0.7, label: '寝台', use: (gg) => gg.say('天蓋付きの大きな寝台。シーツは乱れたままだ。\n枕には、塩の結晶のような白い染みがこびりついている。') });

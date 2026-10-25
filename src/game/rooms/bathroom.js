@@ -25,7 +25,7 @@ export default {
     });
     r.door(-1.0, 1.75, Math.PI, { w: 0.9, h: 2.1, to: 'corridor', entry: 'fromBathroom', label: '廊下への扉', panel: 'woodLight', frame: 'woodLight', wallMat: 'wallpaperRose' });
     r.entry('fromCorridor', -1.0, 1.15, Math.PI);
-    r.window(0.35, -1.75, 0, { w: 0.8, h: 0.75, sill: 1.65, frame: 'woodLight', wallMat: 'wallpaperRose', intensity: 35, angle: 0.6, shadow: 'lo' });
+    r.window(0.35, -1.75, 0, { w: 0.8, h: 0.75, sill: 1.65, frame: 'woodLight', intensity: 35, angle: 0.6, shadow: 'lo' });
 
     const tub = F.bathtub();
     r.place(tub, 0.35, -1.3, 0, { collide: true });

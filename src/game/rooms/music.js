@@ -19,7 +19,7 @@ export default {
     F.rug(r, 'rugBlue', 0.4, 0.6, 4.6, 3.4);
     r.door(-4, 1.5, Math.PI / 2, { w: 1.2, h: 2.3, to: 'hall', entry: 'fromMusic', label: '広間への扉', wallMat: 'wallpaperRose', panel: 'woodLight' });
     r.entry('fromHall', -3.35, 1.5, Math.PI / 2);
-    for (const x of [-1.8, 2.2]) r.window(x, -3.5, 0, { w: 1.1, h: 2.0, sill: 0.8, curtains: 'curtainGold', wallMat: 'wallpaperRose', intensity: 55, shadow: x > 0 ? 'lo' : false });
+    for (const x of [-1.8, 2.2]) r.window(x, -3.5, 0, { w: 1.1, h: 2.0, sill: 0.8, curtains: 'curtainGold', intensity: 55, shadow: x > 0 ? 'lo' : false });
 
     const piano = F.grandPiano();
     r.place(piano, 0.6, 0.15, 0, { collide: true });

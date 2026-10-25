@@ -25,7 +25,7 @@ export default {
     F.rug(r, 'rugGreen', 0, 0, 7.2, 3.6);
     r.door(5, 0, -Math.PI / 2, { w: 1.7, h: 2.6, double: true, to: 'hall', entry: 'fromDining', label: '広間への扉', wallMat: 'wallpaperGreen', glass: true });
     r.entry('fromHall', 4.35, 0, -Math.PI / 2);
-    for (const x of [-2.2, 2.2]) r.window(x, 3, Math.PI, { w: 1.1, h: 2.0, sill: 0.8, curtains: 'curtainRed', wallMat: 'wallpaperGreen', intensity: 45, shadow: x > 0 ? 'lo' : false });
+    for (const x of [-2.2, 2.2]) r.window(x, 3, Math.PI, { w: 1.1, h: 2.0, sill: 0.8, curtains: 'curtainRed', intensity: 45, shadow: x > 0 ? 'lo' : false });
 
     // long table
     const tbl = F.table({ w: 5.6, d: 1.3, h: 0.78, wood: 'woodRed', cloth: true });

@@ -124,7 +124,7 @@ export default {
     F.cobweb(r, -3.95, H + 0.3, 2.95, Math.PI / 2, 0.7);
 
     // window + moonlight
-    r.win = r.window(-2.0, -3, 0, { w: 0.9, h: 1.0, sill: 0.9, frame: 'woodBlack', wallMat: 'atticWall', shadow: 'hi', intensity: 90, angle: 0.5, dyn: true });
+    r.win = r.window(-2.0, -3, 0, { w: 0.9, h: 1.0, sill: 0.9, frame: 'woodBlack', shadow: 'hi', intensity: 90, angle: 0.5, dyn: true });
     r.interact({
       id: 'window', x: -2.0, z: -2.5, r: 0.5, label: '窓',
       enabled: (g) => g.flags.atticWindow !== 'blocked',

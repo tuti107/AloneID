@@ -64,10 +64,11 @@ export function trunk({ w = 1.0, h = 0.55, d = 0.55 } = {}) {
   g.add(lid);
   bx(lid, 'woodLight', w, h * 0.3, d, 0, 0, d / 2);
   for (const x of [-w * 0.32, w * 0.32]) {
-    bx(g, 'iron', 0.06, h * 0.7 + 0.01, d + 0.02, x, 0, 0);
+    bx(g, 'iron', 0.06, h * 0.7, d + 0.02, x, 0, 0);
     bx(lid, 'iron', 0.06, h * 0.3 + 0.01, d + 0.02, x, 0, d / 2);
   }
-  bx(g, 'iron', w + 0.02, 0.05, d + 0.02, 0, 0.02, 0);
+  // base band 3 mm proud of the straps it crosses, so their faces never coincide
+  bx(g, 'iron', w + 0.026, 0.05, d + 0.026, 0, 0.02, 0);
   bx(lid, brass(), 0.1, 0.12, 0.02, 0, -0.06, d + 0.005);
   g.userData.col = [w + 0.05, d + 0.05];
   g.userData.lid = lid;
@@ -106,9 +107,11 @@ export function bookshelf({ w = 1.6, h = 2.4, d = 0.4, wood = 'wood', books = 'b
   const g = G();
   bx(g, wood, 0.05, h, d, -w / 2 + 0.025, 0, 0);
   bx(g, wood, 0.05, h, d, w / 2 - 0.025, 0, 0);
-  bx(g, wood, w, 0.05, d, 0, h - 0.05, 0);
+  // top and plinth fit between the sides (overlapping them, their faces
+  // would lie flush and flicker)
+  bx(g, wood, w - 0.1, 0.05, d, 0, h - 0.05, 0);
   bx(g, 'woodBlack', w + 0.08, 0.08, d + 0.05, 0, h, 0.01);
-  bx(g, wood, w, 0.1, d, 0, 0, 0);
+  bx(g, wood, w - 0.1, 0.1, d, 0, 0, 0);
   bx(g, M(books), w - 0.1, h - 0.15, d - 0.06, 0, 0.1, -0.02);
   g.userData.col = [w, d];
   return g;
@@ -116,8 +119,8 @@ export function bookshelf({ w = 1.6, h = 2.4, d = 0.4, wood = 'wood', books = 'b
 
 export function wineRack({ w = 1.2, h = 2.0, d = 0.45 } = {}) {
   const g = G();
-  bx(g, 'wood', 0.06, h, d, -w / 2 + 0.03, 0, 0);
-  bx(g, 'wood', 0.06, h, d, w / 2 - 0.03, 0, 0);
+  bx(g, 'wood', 0.06, h - 0.06, d, -w / 2 + 0.03, 0, 0);
+  bx(g, 'wood', 0.06, h - 0.06, d, w / 2 - 0.03, 0, 0);
   bx(g, 'wood', w, 0.06, d, 0, h - 0.06, 0);
   bx(g, M('wineRack'), w - 0.12, h - 0.1, d - 0.04, 0, 0.04, 0);
   g.userData.col = [w, d];
@@ -155,7 +158,7 @@ export function table({ w = 1.2, d = 0.8, h = 0.76, wood = 'woodRed', cloth = fa
         const leg = new THREE.Mesh(frustum(0.07, 0.07, 0.045, 0.045, -(h - 0.05)), mat(wood));
         leg.position.set(sx * lx, h - 0.05, sz * lz);
         g.add(leg);
-      } else bx(g, wood, 0.06, h - 0.05, 0.06, sx * lx, 0, sz * lz);
+      } else bx(g, wood, 0.066, h - 0.05, 0.066, sx * lx, 0, sz * lz); // 3 mm proud of the apron
     }
   }
   if (cloth) {
@@ -244,7 +247,8 @@ export function sofa({ w = 1.9, fabric = 'velvetGreen' } = {}) {
   bx(g, fabric, w, 0.3, 0.8, 0, 0.12, 0);
   for (const sx of [-1, 1]) bx(g, fabric, w / 2 - 0.12, 0.12, 0.62, sx * (w / 4 - 0.02), 0.42, 0.06);
   bx(g, fabric, w, 0.6, 0.18, 0, 0.42, -0.31);
-  for (const sx of [-1, 1]) bx(g, fabric, 0.16, 0.42, 0.8, sx * (w / 2 - 0.08), 0.42, 0);
+  // arms 3 mm proud of the back and seat they overlap, never flush with them
+  for (const sx of [-1, 1]) bx(g, fabric, 0.163, 0.42, 0.806, sx * (w / 2 - 0.0785), 0.42, 0);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) bx(g, 'woodBlack', 0.06, 0.12, 0.06, sx * (w / 2 - 0.08), 0, sz * 0.33);
   g.userData.col = [w, 0.82];
   return g;
@@ -274,16 +278,18 @@ export function bed({ w = 1.6, l = 2.1, wood = 'woodRed', canopy = true } = {}) 
   const g = G();
   bx(g, wood, w, 0.25, l, 0, 0.12, 0);
   bx(g, M('linen', { ts: [1.2, 1.2] }), w - 0.08, 0.22, l - 0.12, 0, 0.37, 0.03);
-  bx(g, 'quilt', w - 0.02, 0.06, l * 0.66, 0, 0.57, l * 0.17);
-  for (const sx of [-1, 1]) bx(g, 'quilt', 0.02, 0.36, l * 0.66, sx * (w / 2 - 0.01), 0.24, l * 0.17);
+  // the quilt hangs 3 mm proud of the frame and tucks into the footboard,
+  // so none of its faces lies flush with the wood's
+  bx(g, 'quilt', w - 0.02, 0.06, l * 0.66 - 0.03, 0, 0.57, l * 0.17 - 0.015);
+  for (const sx of [-1, 1]) bx(g, 'quilt', 0.02, 0.36, l * 0.66 - 0.03, sx * (w / 2 - 0.007), 0.24, l * 0.17 - 0.015);
   bx(g, 'quilt', w - 0.02, 0.36, 0.02, 0, 0.24, l / 2 - 0.02);
   for (const sx of [-1, 1]) {
     const p = bx(g, M('linen', { ts: [1.2, 1.2] }), w * 0.38, 0.13, 0.36, sx * w * 0.22, 0.58, -l / 2 + 0.28);
     p.rotation.x = -0.25;
   }
-  bx(g, wood, w + 0.1, 1.15, 0.08, 0, 0.3, -l / 2 + 0.04);
+  bx(g, wood, w + 0.1, 1.15, 0.08, 0, 0.3, -l / 2 + 0.037);
   bx(g, 'woodBlack', w + 0.16, 0.08, 0.12, 0, 1.43, -l / 2 + 0.04);
-  bx(g, wood, w + 0.1, 0.5, 0.06, 0, 0.25, l / 2 - 0.03);
+  bx(g, wood, w + 0.1, 0.5, 0.06, 0, 0.25, l / 2 - 0.027);
   const ph = canopy ? 2.2 : 1.35;
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
@@ -293,7 +299,7 @@ export function bed({ w = 1.6, l = 2.1, wood = 'woodRed', canopy = true } = {}) 
   }
   if (canopy) {
     for (const sx of [-1, 1]) bx(g, 'woodBlack', 0.06, 0.08, l + 0.06, sx * (w / 2 + 0.04), ph - 0.04, 0);
-    for (const sz of [-1, 1]) bx(g, 'woodBlack', w + 0.14, 0.08, 0.06, 0, ph - 0.04, sz * (l / 2 - 0.02));
+    for (const sz of [-1, 1]) bx(g, 'woodBlack', w + 0.134, 0.074, 0.06, 0, ph - 0.037, sz * (l / 2 - 0.02));
     const cm = M('curtainRed', { side: THREE.DoubleSide });
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) bx(g, cm, 0.04, ph - 0.3, 0.36, sx * (w / 2 + 0.07), 0.3, sz * (l / 2 - 0.22));
     bx(g, cm, w + 0.2, 0.25, 0.04, 0, ph - 0.27, l / 2 + 0.02);
@@ -306,8 +312,9 @@ export function bed({ w = 1.6, l = 2.1, wood = 'woodRed', canopy = true } = {}) 
 export function fireplace({ w = 1.8, h = 1.3, d = 0.45, stone = 'marble', lit = true } = {}) {
   const g = G();
   const sm = mat(stone);
-  bx(g, sm, 0.32, h, d, -(w / 2 - 0.16), 0, 0);
-  bx(g, sm, 0.32, h, d, w / 2 - 0.16, 0, 0);
+  // jambs stop under the lintel rather than running up through it
+  bx(g, sm, 0.32, h - 0.3, d, -(w / 2 - 0.16), 0, 0);
+  bx(g, sm, 0.32, h - 0.3, d, w / 2 - 0.16, 0, 0);
   bx(g, sm, w, 0.3, d, 0, h - 0.3, 0);
   bx(g, 'woodBlack', w + 0.24, 0.07, d + 0.14, 0, h, 0.05);
   bx(g, 'soot', w - 0.64, h - 0.3, 0.05, 0, 0, -d / 2 + 0.03);
@@ -432,7 +439,7 @@ export function grandPiano() {
   const prop = bx(g, C(0x0c0a0a), 0.02, 0.62, 0.02, 0.62, 0.92, -0.6);
   prop.rotation.z = 0.28;
   // keyboard
-  bx(g, pm, 1.5, 0.12, 0.22, 0, 0.62, 0.11);
+  bx(g, pm, 1.38, 0.12, 0.22, 0, 0.62, 0.11);
   bx(g, C(0xd8d0c0), 1.36, 0.02, 0.16, 0, 0.74, 0.12);
   const nW = 36, kw = 1.36 / nW;
   for (let i = 0; i < nW - 1; i++) {
@@ -501,7 +508,8 @@ export function bathtub({ water = true } = {}) {
   const outer = roundRect(1.6, 0.76, 0.34);
   outer.holes.push(roundRect(1.46, 0.62, 0.28));
   const enamel = C(0xd6d0c2, { phong: true, flat: false, shininess: 60, specular: 0x666666 });
-  const shell = new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth: 0.48, bevelEnabled: false, curveSegments: 6 }), enamel);
+  // up to the rim's underside: rising into the rim, its inner wall would lie flush with the rim's
+  const shell = new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth: 0.46, bevelEnabled: false, curveSegments: 6 }), enamel);
   shell.rotation.x = -Math.PI / 2;
   shell.position.y = 0.14;
   g.add(shell);

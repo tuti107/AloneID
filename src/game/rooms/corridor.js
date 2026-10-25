@@ -73,8 +73,8 @@ export default {
     r.entry('fromLibrary', 0.5, 0.7, Math.PI);
 
     // windows
-    r.window(5.6, 1.3, Math.PI, { w: 1.0, h: 1.6, sill: 0.8, curtains: 'curtainRed', wallMat: 'wallpaperGreen', shadow: 'lo', intensity: 60, angle: 0.55 });
-    r.window(-5.6, 1.3, Math.PI, { w: 1.0, h: 1.6, sill: 0.8, curtains: 'curtainRed', wallMat: 'wallpaperGreen', intensity: 45, angle: 0.55 });
+    r.window(5.6, 1.3, Math.PI, { w: 1.0, h: 1.6, sill: 0.8, curtains: 'curtainRed', shadow: 'lo', intensity: 60, angle: 0.55 });
+    r.window(-5.6, 1.3, Math.PI, { w: 1.0, h: 1.6, sill: 0.8, curtains: 'curtainRed', intensity: 45, angle: 0.55 });
 
     // decor
     const pTop = 2.05;

@@ -19,7 +19,7 @@ export default {
     F.rug(r, 'rugRed', 0.2, 0.1, 4.2, 3.2);
     r.door(-2.5, -3.5, 0, { to: 'corridor', entry: 'fromLibrary', label: '廊下への扉', wallMat: 'wallpaperGold' });
     r.entry('fromCorridor', -2.5, -2.9, 0);
-    r.window(1.5, 3.5, Math.PI, { w: 1.2, h: 1.8, sill: 0.8, curtains: 'curtainGreen', wallMat: 'wallpaperGold', intensity: 55, shadow: 'lo' });
+    r.window(1.5, 3.5, Math.PI, { w: 1.2, h: 1.8, sill: 0.8, curtains: 'curtainGreen', intensity: 55, shadow: 'lo' });
 
     // shelves
     const shelf = (x, z, ry, w = 1.8, h = 2.7, books = 'books') => r.place(F.bookshelf({ w, h, d: 0.42, books }), x, z, ry, { collide: true });
