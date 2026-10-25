@@ -954,8 +954,8 @@ function mirrorAge() {
 // Faces are projected from the front onto the sculpted heads (body.js), so
 // the features sit on fixed rows: brows 7, eyes 10-11, nose 13-19, mouth
 // 21-22, chin 28; eyes are centred on columns 9.5 and 21.5.
-// kind: 'man' | 'dead' | 'ghoul' | 'ghost'. glow:true paints only what
-// shines (the eyes), for an emissive map.
+// kind: 'man' | 'dead' | 'ghoul' | 'ghost' | 'ghostScream' | 'agony'.
+// glow:true paints only what shines (the eyes), for an emissive map.
 function face({ skin, eye = '#e6dece', iris = '#3a2616', brows = '#2a1a10', lips = '#8a5048', mouth = '#2a0a08', mustache = null, kind = 'man', female = false, glow = false }) {
   const [c, g] = mk(32, 32);
   const px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
@@ -983,6 +983,16 @@ function face({ skin, eye = '#e6dece', iris = '#3a2616', brows = '#2a1a10', lips
     px(7, 8, 5, 5, '#000'); px(20, 8, 5, 5, '#000');
     px(8, 7, 3, 1, '#000'); px(21, 7, 3, 1, '#000');
     px(14, 19, 4, 6, '#000'); px(15, 18, 2, 1, '#000'); px(15, 25, 2, 1, '#000');
+    c.opts = { repeat: false };
+    return c;
+  }
+  if (kind === 'ghostScream') {
+    // the same face torn open: sockets dragged down into the cheeks, black
+    // runnels below them, the jaw hanging to the chin
+    px(6, 7, 6, 8, '#000'); px(20, 7, 6, 8, '#000');
+    px(7, 15, 4, 2, '#000'); px(21, 15, 4, 2, '#000');
+    px(8, 17, 2, 5, '#000'); px(22, 17, 2, 5, '#000');
+    px(11, 19, 10, 11, '#000'); px(12, 18, 8, 1, '#000'); px(12, 30, 8, 2, '#000');
     c.opts = { repeat: false };
     return c;
   }
@@ -1109,6 +1119,7 @@ const BUILDERS = {
   faceGhoul: () => face({ skin: '#6e6e60', eye: '#ffd040', mouth: '#200808', kind: 'ghoul' }),
   faceGhoulGlow: () => face({ eye: '#ffd040', kind: 'ghoul', glow: true }),
   faceGhost: () => face({ skin: '#ffffff', kind: 'ghost' }),
+  faceGhostScream: () => face({ skin: '#ffffff', kind: 'ghostScream' }),
   faceDrowned: () => face({ skin: '#a8b6b2', kind: 'ghost' }),
   faceAgony: () => face({ skin: '#8e9290', kind: 'agony' }),
 };

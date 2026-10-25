@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { Animator, blobShadow, addXray } from './rig.js';
 import * as CH from './characters.js';
 import { resolveCircle, separateCircles } from '../engine/collision.js';
-import { angleDiff, approachAngle, damp, clamp } from '../engine/util.js';
+import { angleDiff, approachAngle, approach, damp, clamp } from '../engine/util.js';
+import { tex } from '../engine/textures.js';
 
 const TYPES = {
   butler: { build: CH.buildButler, hp: 45, dmg: 12, speed: 0.78, turn: 2.6, range: 1.05, sight: 9, cd: 0.8, radius: 0.3, voice: 'zombie', stagger: 0 },
@@ -347,7 +348,9 @@ export class Crawler extends Monster {
   }
 }
 
-// Spectral dinner guests: invulnerable, glide through furniture.
+// Spectral dinner guests: invulnerable, glide through furniture. Seated,
+// they turn their heads to watch you go by; risen, their faces tear open
+// and they hunt you, swooping in when close.
 export class Ghost extends Monster {
   constructor(game, room, o) {
     const T = { build: () => CH.buildGhost({ dress: o.dress, color: o.color }), hp: 999, dmg: o.dmg ?? 26, speed: o.speed ?? 1.5, turn: 3.5, range: 1.0, sight: 30, cd: 1.0, radius: 0.3, voice: 'ghost', stagger: 9999 };
@@ -362,56 +365,117 @@ export class Ghost extends Monster {
     this.parts.root.traverse((m) => { if (m.isMesh) m.castShadow = false; });
     this.flick = Math.random() * 10;
     this.opacity = 0.55;
+    this.watchR = o.watch || 0; // seated: watch the player within this distance
+    this.watch = this.watchR;
+    this.look = 0; // head turn on top of the animation
+    this.lookAt = null;
+    this.lookMax = 1.3;
+    this.lookRate = 0.8;
+    this.riseT = 0.9;
+    this.lungeT = 0;
+    this.lungeCd = 1;
+    this.guard = o.guard || null; // {x, z}: hold the way out instead of giving chase
   }
   setOpacity(a) {
     this.opacity = a;
     for (const m of this.parts.ghostMats) m.opacity = a;
+  }
+  // Turn the head toward lookAt, or back to the front. lookMax may go past
+  // what a living neck allows.
+  turnHead(dt) {
+    const t = this.lookAt;
+    const want = t ? clamp(angleDiff(this.rot, Math.atan2(t.x - this.pos.x, t.z - this.pos.z)), -this.lookMax, this.lookMax) : 0;
+    this.look = approach(this.look, want, this.lookRate * dt);
+    if (!this.look) return;
+    const j = this.parts.joints;
+    j.neck.rotation.y += this.look * 0.85;
+    j.spine.rotation.y += this.look * 0.15;
+  }
+  // The serene face tears open into a scream, and burns brighter.
+  enrage() {
+    const fm = this.parts.faceMat;
+    fm.map = fm.emissiveMap = tex('faceGhostScream');
+    this.opacity = 0.78;
+  }
+  calm() {
+    const fm = this.parts.faceMat;
+    fm.map = fm.emissiveMap = tex('faceGhost');
+    this.opacity = 0.55;
   }
   update(dt) {
     this.flick += dt;
     const base = this.opacity;
     const flicker = base * (0.85 + Math.sin(this.flick * 13) * 0.08 + Math.sin(this.flick * 3.1) * 0.07);
     for (const m of this.parts.ghostMats) m.opacity = flicker;
+    const p = this.player;
     if (this.state === 'seated') {
       this.stateT += dt;
+      if (this.watch) {
+        const d = Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z);
+        if (d < this.watch) this.lookAt = p.pos;
+        else if (d > this.watch + 0.6) this.lookAt = null;
+      }
       this.anim.play('sit');
       this.anim.update(dt);
+      this.turnHead(dt);
       this.sync();
       return;
     }
     if (this.state === 'rising') {
       this.stateT += dt;
-      this.anim.play('idle', { fade: 0.4 });
+      this.anim.play('loom', { fade: 0.4 });
       this.anim.update(dt);
+      this.lookAt = p.pos;
+      this.lookMax = 1.3;
+      this.lookRate = 2.5;
+      this.turnHead(dt);
       this.pos.y = damp(this.pos.y, 0.15, 3, dt);
-      const p = this.player;
       this.rot = approachAngle(this.rot, Math.atan2(p.pos.x - this.pos.x, p.pos.z - this.pos.z), 3 * dt);
       this.sync();
-      if (this.stateT > 0.9) this.setState('chase');
+      if (this.stateT > this.riseT) this.setState('chase');
       return;
     }
     if (this.state === 'dance' || this.state === 'still') {
       this.stateT += dt;
       this.anim.update(dt);
+      this.turnHead(dt);
       this.sync();
       return;
     }
     if (this.state === 'chase' || this.state === 'attack') {
       this.noticed = true;
+      this.lookAt = null;
       // glide straight through furniture
-      const p = this.player;
       if (this.state === 'chase') {
         const dx = p.pos.x - this.pos.x, dz = p.pos.z - this.pos.z;
         const dist = Math.hypot(dx, dz);
         const toP = Math.atan2(dx, dz);
-        this.rot = approachAngle(this.rot, toP, this.T.turn * dt);
-        if (dist < this.T.range + 0.2 && this.attackCd <= 0) {
-          this.startAttack();
-        } else if (dist > 0.6) {
-          this.pos.x += Math.sin(this.rot) * this.T.speed * dt;
-          this.pos.z += Math.cos(this.rot) * this.T.speed * dt;
+        // a guard waits between you and the way out until you come close
+        let goal = toP, hold = false;
+        if (this.guard && dist > 2.4) {
+          const gx = p.pos.x - this.guard.x, gz = p.pos.z - this.guard.z, gl = Math.hypot(gx, gz) || 1;
+          const tx = this.guard.x + (gx / gl) * Math.min(1.3, gl * 0.5), tz = this.guard.z + (gz / gl) * Math.min(1.3, gl * 0.5);
+          goal = Math.atan2(tx - this.pos.x, tz - this.pos.z);
+          hold = Math.hypot(tx - this.pos.x, tz - this.pos.z) < 0.15;
         }
-        this.anim.play('walk', { fade: 0.3 });
+        this.rot = approachAngle(this.rot, hold ? toP : goal, this.T.turn * dt);
+        this.lungeCd -= dt;
+        if (this.lungeT > 0) this.lungeT -= dt;
+        else if (this.lungeCd <= 0 && dist > 1.3 && dist < 3.2 && Math.abs(angleDiff(this.rot, toP)) < 0.4) {
+          // a sudden swoop with a shriek
+          this.lungeT = 0.45;
+          this.lungeCd = 2 + Math.random() * 1.6;
+          this.game.audio.sfx('ghostLunge', { at: this.pos });
+        }
+        if (dist < this.T.range + 0.2 && this.attackCd <= 0) {
+          this.lungeT = 0;
+          this.startAttack();
+        } else if (dist > 0.6 && !hold) {
+          const sp = this.T.speed * (this.lungeT > 0 ? 2.4 : 1);
+          this.pos.x += Math.sin(this.rot) * sp * dt;
+          this.pos.z += Math.cos(this.rot) * sp * dt;
+        }
+        if (this.state === 'chase') this.anim.play(this.lungeT > 0 ? 'lunge' : 'walk', { fade: this.lungeT > 0 ? 0.08 : 0.3 });
         this.attackCd -= dt;
         this.stateT += dt;
       } else {
@@ -421,14 +485,17 @@ export class Ghost extends Monster {
       this.pos.y = damp(this.pos.y, 0.05, 4, dt);
       this.sync();
       const evs = this.anim.update(dt);
+      this.turnHead(dt);
       for (const e of evs) this.onAnimEvent(e);
       return;
     }
     super.update(dt);
   }
-  rise() {
-    if (this.state !== 'seated') return;
+  rise(t = 0.9) {
+    if (this.state !== 'seated' && this.state !== 'still') return;
+    this.riseT = t;
     this.setState('rising');
+    this.enrage();
     this.game.audio.sfx('ghostScream', { at: this.pos });
   }
   reseat() {
@@ -437,6 +504,13 @@ export class Ghost extends Monster {
     this.rot = this.seat.rot;
     this.state = 'seated';
     this.stateT = 0;
+    this.watch = this.watchR;
+    this.look = 0;
+    this.lookAt = null;
+    this.lookMax = 1.3;
+    this.lookRate = 0.8;
+    this.lungeT = 0;
+    this.calm();
     this.anim.play('sit', { fade: 0 });
     this.sync();
   }

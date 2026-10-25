@@ -576,7 +576,7 @@ export class Audio {
     // tension layer: monsters hunting in the current room
     let want = 0;
     if (game && game.state === 'play' && game.room && !(this.song && this.song.def.noTension)) {
-      for (const m of game.room.monsters) if (m.alive && (m.state === 'chase' || m.state === 'attack' || m.state === 'leap') && !m.ghostly) want = 1;
+      for (const m of game.room.monsters) if (m.alive && (m.state === 'chase' || m.state === 'attack' || m.state === 'leap')) want = 1;
       if (game.room.horror && game.room.horror.state !== 'hidden' && game.room.horror.state !== 'gone') want = 0;
     }
     this.tension += (want - this.tension) * Math.min(1, dt * (want ? 1.5 : 0.4));
@@ -691,6 +691,12 @@ const SFX = {
     this.noise(t, 1.6, d, { bp: 1800, q: 3, vol: 0.3, attack: 0.1 });
   },
   ghostAttack(t, d) { SFX.ghostScream.call(this, t, d); },
+  ghostLunge(t, d) {
+    this.tone(t, 640, 0.55, d, { f2: 1500, glide: 0.3, vol: 0.16, vib: 70, vibRate: 9, attack: 0.02 });
+    this.noise(t, 0.45, d, { bp: 2200, q: 2, vol: 0.4, attack: 0.02 });
+  },
+  neckCreak(t, d) { for (let i = 0; i < 9; i++) this.noise(t + i * 0.11 + rand(0, 0.05), 0.04, d, { bp: rand(300, 700), q: 7, vol: 0.35 }); },
+  candleOut(t, d) { this.noise(t, 0.3, d, { lp: 700, vol: 0.35, attack: 0.01 }); },
   ghostGrowl(t, d) { this.tone(t, rand(300, 500), 1.2, d, { vol: 0.06, vib: 20, vibRate: 5, attack: 0.3 }); },
   ghostHurt() {},
   ghostDie() {},

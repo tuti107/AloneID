@@ -928,16 +928,48 @@ export function ghostClips() {
     walk: {
       loop: true,
       fn(t, p) {
-        setJ(p, 'lShoulder', -0.6, 0, 0.3);
-        setJ(p, 'rShoulder', -0.6, 0, -0.3);
-        setJ(p, 'lElbow', -0.3);
-        setJ(p, 'rElbow', -0.3);
-        setJ(p, 'spine', 0.25);
+        // drifting after you, hands out to take hold, head lolling
+        setJ(p, 'lShoulder', -1.15 + S(t * 2.1) * 0.12, 0, 0.22);
+        setJ(p, 'rShoulder', -1.15 + S(t * 2.1 + 1.7) * 0.12, 0, -0.22);
+        setJ(p, 'lElbow', -0.25);
+        setJ(p, 'rElbow', -0.25);
+        setJ(p, 'spine', 0.3);
+        setJ(p, 'neck', -0.1, 0, S(t * 1.3) * 0.18);
         setJ(p, 'lHip', 0.3);
         setJ(p, 'rHip', 0.35);
         setJ(p, 'lKnee', 0.5);
         setJ(p, 'rKnee', 0.6);
         p[ROOT + 1] = 0.18 + S(t * 3) * 0.04;
+      },
+    },
+    lunge: {
+      loop: true,
+      fn(t, p) {
+        // swooping in flat out, arms thrust at you
+        setJ(p, 'lShoulder', -1.55, 0, 0.12);
+        setJ(p, 'rShoulder', -1.55, 0, -0.12);
+        setJ(p, 'lElbow', -0.05);
+        setJ(p, 'rElbow', -0.05);
+        setJ(p, 'spine', 0.55);
+        setJ(p, 'neck', -0.35);
+        setJ(p, 'lHip', 0.7);
+        setJ(p, 'rHip', 0.8);
+        setJ(p, 'lKnee', 1.1);
+        setJ(p, 'rKnee', 1.2);
+        p[ROOT + 1] = 0.3;
+      },
+    },
+    loom: {
+      loop: true,
+      fn(t, p) {
+        // standing over you, head bowed and tilted, hands lifting
+        setJ(p, 'lShoulder', -0.7 + S(t * 0.9) * 0.05, 0, 0.18);
+        setJ(p, 'rShoulder', -0.7 + S(t * 0.9 + 1) * 0.05, 0, -0.18);
+        setJ(p, 'lElbow', -0.6);
+        setJ(p, 'rElbow', -0.6);
+        setJ(p, 'spine', 0.12);
+        setJ(p, 'neck', 0.35, 0, 0.25);
+        p[ROOT + 1] = 0.16 + S(t * 1.1) * 0.02;
       },
     },
     hit: {

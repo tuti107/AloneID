@@ -1,13 +1,15 @@
-// 食堂 — the dinner that never ends. The guests detest noise.
+// 食堂 — the dinner that never ends. The guests detest noise, and they do
+// not let you take anything from their table.
 import * as F from '../furniture.js';
 import { M, C } from '../mats.js';
+import { angleDiff } from '../../engine/util.js';
 
 const SEATS = [
   { x: -2.4, z: -1.0, rot: 0, dress: false, color: 0x8098c0 },
   { x: 0.0, z: -1.0, rot: 0, dress: true, color: 0x90a0d0 },
-  { x: 2.4, z: 1.0, rot: Math.PI, dress: false, color: 0x7890b8 },
+  { x: 2.4, z: 1.0, rot: Math.PI, dress: false, color: 0x7890b8, guard: { x: 4.4, z: 0 } },
   { x: -1.2, z: 1.0, rot: Math.PI, dress: true, color: 0x98a8d0 },
-  { x: -3.75, z: 0, rot: Math.PI / 2, dress: false, color: 0xa0b0e0 },
+  { x: -3.55, z: 0, rot: Math.PI / 2, dress: false, color: 0xa0b0e0 },
 ];
 
 export default {
@@ -37,7 +39,8 @@ export default {
         r.place(ch, x, z * (occupied ? 1.02 : 1), ry, { collide: [0.45, 0.45] });
       }
     }
-    r.place(F.chair({ wood: 'woodRed', seat: 'velvet' }), -3.8, 0, Math.PI / 2, { collide: [0.45, 0.45] });
+    // the host's chair, tucked in far enough to leave a way past the sideboard
+    r.place(F.chair({ wood: 'woodRed', seat: 'velvet' }), -3.6, 0, Math.PI / 2, { collide: [0.45, 0.45] });
     // place settings
     for (const x of [-2.4, -1.2, 0.0, 1.2, 2.4]) {
       for (const z of [-0.42, 0.42]) {
@@ -46,10 +49,11 @@ export default {
       }
     }
     r.box(C(0x5a0a0a), 0.5, 0.06, 0.3, 0.6, 0.79, 0);
+    r.candles = [];
     for (const x of [-2.6, -0.6, 1.4]) {
       const cd = F.candelabra({ arms: 3, h: 0.45 });
       r.place(cd, x, 0, 0, { y: 0.79, cast: false });
-      for (const f of cd.userData.flames) r.flame(x + f[0], 0.79 + f[1], f[2], { size: 0.065, color: 0x9fc8ff, glow: 0x4080ff, lightColor: 0x6a9aff, light: f[0] === 0, intensity: 3.2, distance: 6, flicker: 0.4 });
+      for (const f of cd.userData.flames) r.candles.push(r.flame(x + f[0], 0.79 + f[1], f[2], { size: 0.065, color: 0x9fc8ff, glow: 0x4080ff, lightColor: 0x6a9aff, light: f[0] === 0, intensity: 3.2, distance: 6, flicker: 0.4 }));
     }
     // sideboard holding the record
     const sb = F.counter({ w: 1.8, d: 0.55, h: 0.95, top: 'woodRed' });
@@ -66,6 +70,7 @@ export default {
         gg.flags.recordTaken = true;
         await gg.say('飾り棚の引き出しに、紙の袋に入ったレコード盤がしまわれていた。');
         await gg.give('record');
+        if (!gg.flags.diningAngry) await theft(r, gg);
       },
     });
     r.place(F.fireplace({ w: 1.7, h: 1.25, stone: 'marble', lit: false }), 0.5, -2.75, 0, { collide: true });
@@ -75,17 +80,20 @@ export default {
     const ch = F.chandelier({ r: 0.7, n: 6, drop: 0.9 });
     ch.position.set(-0.6, H, 0);
     r.static.add(ch);
-    for (const f of ch.userData.flames) r.flame(-0.6 + f[0], H + f[1], f[2], { size: 0.06, color: 0x9fc8ff, glow: 0x4080ff, light: false });
-    r.point(-0.6, H - 1.2, 0, { color: 0x7090ff, intensity: 6, distance: 9, flicker: 0.3 });
+    for (const f of ch.userData.flames) r.candles.push(r.flame(-0.6 + f[0], H + f[1], f[2], { size: 0.06, color: 0x9fc8ff, glow: 0x4080ff, light: false }));
+    r.chandelierLight = r.point(-0.6, H - 1.2, 0, { color: 0x7090ff, intensity: 6, distance: 9, flicker: 0.3 });
     F.cobweb(r, -4.95, H, -2.95, 0, 0.8);
     F.cobweb(r, 4.95, H, 2.95, Math.PI, 0.8);
     r.interact({ id: 'table', x: 1.4, z: 0.0, r: 1.0, label: '食卓', enabled: (gg) => !gg.flags.diningAngry, use: (gg) => gg.say('青白い客たちが、空の皿を前に静かに食事を続けている。\n銀器の触れ合う音だけが、かすかに聞こえる。') });
 
     r.hemi(0x506090, 0x1a1410, 1.8);
 
+    // seated, each turns its head to watch you within a couple of metres;
+    // risen, they drift faster than you walk, slower than you run, and the
+    // one nearest the doors keeps the way out
     r.ghosts = SEATS.map((s, i) => g.spawn(r, {
       id: 'diner' + i, type: 'ghost', x: s.x, z: s.z, rot: s.rot, dress: s.dress, color: s.color,
-      seat: { x: s.x, z: s.z, rot: s.rot }, speed: 1.45 + i * 0.08,
+      seat: { x: s.x, z: s.z, rot: s.rot }, speed: 2.25 + i * 0.1, watch: 2.0, guard: s.guard,
     }));
     for (const gh of r.ghosts) { gh.pos.y = 0; gh.sync(); }
 
@@ -94,9 +102,11 @@ export default {
   },
 
   setup(r, g) {
-    // the guests are always seated again when you come back
+    // the guests are always seated again when you come back, candles lit
     g.flags.diningAngry = false;
     for (const gh of r.ghosts) gh.reseat();
+    for (const c of r.candles) setLit(c, true);
+    r.chandelierLight.userData.off = false;
   },
 
   async enter(r, g) {
@@ -115,9 +125,79 @@ export default {
 
   onNoise(r, g, kind) {
     if (g.flags.diningAngry) return;
-    g.flags.diningAngry = true;
     g.notify(kind === 'run' ? '足音が、静寂を破った――！' : '物音が、静寂を破った――！', 2.4);
-    for (const gh of r.ghosts) gh.rise();
     g.audio.sfx('sting');
+    wake(r, g);
   },
 };
+
+function setLit(c, on) {
+  c.sprite.visible = c.glow.visible = on;
+  if (c.light) c.light.userData.off = !on;
+}
+
+// The guests rise: silence, the candles gutter out, and every face tears
+// open as they come for you.
+function wake(r, g, o = {}) {
+  g.flags.diningAngry = true;
+  g.audio.setAmbience(null);
+  const still = () => g.room === r && g.flags.diningAngry;
+  if (!o.dark) {
+    r.candles.forEach((c, i) => g.wait(0.04 * i).then(() => still() && setLit(c, false)));
+    r.chandelierLight.userData.off = true;
+  }
+  r.ghosts.forEach((gh, i) => g.wait(i * 0.18).then(() => still() && gh.rise(o.riseT)));
+}
+
+// Taking the record from under their noses. The silverware falls silent,
+// every head turns to you (further than a neck should), the candles die from
+// the far end, and when you turn round the host is standing at your back.
+async function theft(r, g) {
+  const p = g.player, host = r.ghosts[4];
+  const toward = (a, b) => Math.atan2(b.x - a.x, b.z - a.z);
+  g.lock();
+  g.flags.diningAngry = true;
+  g.audio.setAmbience(null);
+  p.rot = -Math.PI / 2;
+  await g.wait(1.0);
+  // just above your head, down the table: the heads turn up into the lens
+  g.cut({ pos: [p.pos.x - 0.25, 2.05, p.pos.z - 0.1], look: [0.8, 0.9, 0], fov: 54 });
+  for (const gh of r.ghosts) {
+    gh.watch = 0;
+    gh.lookAt = p.pos;
+    gh.lookMax = 2.3;
+    gh.lookRate = Math.abs(angleDiff(gh.rot, toward(gh.pos, p.pos))) / 1.6 + 0.01;
+    g.audio.sfx('neckCreak', { at: gh.pos, vol: 0.6 });
+  }
+  await g.wait(2.3);
+  const far = r.candles.slice().sort((a, b) => b.sprite.position.x - a.sprite.position.x);
+  for (const c of far) {
+    setLit(c, false);
+    g.audio.sfx('candleOut', { at: c.sprite.position, vol: 0.5 });
+    await g.wait(0.08);
+  }
+  r.chandelierLight.userData.off = true;
+  await g.wait(1.0);
+  // turn round: the host is up, looming over you
+  host.setState('still');
+  host.rot = toward(host.pos, p.pos);
+  host.pos.y = 0.12;
+  host.lookAt = null;
+  host.look = 0;
+  host.anim.play('loom', { fade: 0 });
+  host.sync();
+  p.rot = toward(p.pos, host.pos);
+  // from beside you, so nothing hides its face
+  const ux = Math.sin(p.rot), uz = Math.cos(p.rot);
+  g.cut({ pos: [p.pos.x - ux * 0.35 - uz * 0.75, 1.6, p.pos.z - uz * 0.35 + ux * 0.75], look: [host.pos.x, 1.78, host.pos.z], fov: 50 });
+  await g.wait(0.9);
+  host.rise(1.2);
+  g.audio.sfx('sting');
+  g.flash(0.55, [0.7, 0.8, 1.0]);
+  g.shake(0.08, 0.4);
+  await g.wait(0.7);
+  g.cut(null);
+  g.notify('逃げろ――！', 2.2);
+  wake(r, g, { dark: true, riseT: 1.0 });
+  g.unlock();
+}
