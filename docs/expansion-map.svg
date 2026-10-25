@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 1010" width="1300" height="1010" font-family="'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', 'IPAGothic', sans-serif">
+<rect width="1300" height="1010" fill="#121419"/>
+<text x="32" y="44" font-size="22" fill="#f4e6bf" text-anchor="start" font-weight="700">ASHCOMBE HOUSE　館の地図（拡張後の案）</text>
+<text x="32" y="68" font-size="13" fill="#9a927f" text-anchor="start" font-weight="400">金色の枠が新しい部屋（12）。灰色は今ある部屋（11）。</text>
+<rect x="20" y="88" width="1260" height="74" rx="6" fill="#181b22"/>
+<text x="34" y="110" font-size="13" fill="#9a927f" text-anchor="start" font-weight="700">屋根裏・塔の上</text>
+<rect x="20" y="168" width="1260" height="204" rx="6" fill="#181b22"/>
+<text x="34" y="190" font-size="13" fill="#9a927f" text-anchor="start" font-weight="700">2 階</text>
+<rect x="20" y="378" width="1260" height="232" rx="6" fill="#181b22"/>
+<text x="34" y="400" font-size="13" fill="#9a927f" text-anchor="start" font-weight="700">1 階</text>
+<rect x="20" y="616" width="1260" height="374" rx="6" fill="#181b22"/>
+<text x="34" y="638" font-size="13" fill="#9a927f" text-anchor="start" font-weight="700">地下</text>
+<rect x="870" y="30" width="26" height="16" rx="3" fill="#26241f" stroke="#7d7462"/>
+<text x="904" y="43" font-size="12" fill="#9a927f" text-anchor="start" font-weight="400">今ある部屋</text>
+<rect x="990" y="30" width="26" height="16" rx="3" fill="#352b14" stroke="#e0b54a" stroke-width="2"/>
+<text x="1024" y="43" font-size="12" fill="#9a927f" text-anchor="start" font-weight="400">新しい部屋</text>
+<path d="M 870 64 L 896 64" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5"/>
+<text x="904" y="68" font-size="12" fill="#9a927f" text-anchor="start" font-weight="400">第二幕で通れる</text>
+<path d="M 1020 64 L 1046 64" stroke="#8d8676" stroke-width="2.2" stroke-dasharray="2 4"/>
+<text x="1054" y="68" font-size="12" fill="#9a927f" text-anchor="start" font-weight="400">近道</text>
+<rect x="830.0" y="102.0" width="150" height="46" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="905" y="123" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">屋根裏部屋</text>
+<text x="905" y="140" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">物語の始まり</text>
+<rect x="942.0" y="93.0" width="40" height="17" rx="3" fill="#121419" stroke="#7d7462" stroke-width="1"/>
+<text x="962.0" y="106.0" font-size="10" fill="#7d7462" text-anchor="middle" font-weight="400">既存</text>
+<rect x="1110.0" y="102.0" width="150" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="1185" y="123" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">灯室</text>
+<text x="1185" y="140" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">消えない火・ランタン</text>
+<rect x="330.0" y="262.0" width="150" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="405" y="283" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">子供部屋</text>
+<text x="405" y="300" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">トマス・オルゴール</text>
+<rect x="565.0" y="265.0" width="250" height="40" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="690" y="290" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">二階廊下</text>
+<rect x="500.0" y="190.0" width="150" height="46" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="575" y="211" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">浴室</text>
+<text x="575" y="228" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">真鍮の小さな鍵</text>
+<rect x="730.0" y="190.0" width="150" height="46" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="805" y="211" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">主寝室</text>
+<text x="805" y="228" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">拳銃・ぜんまい鍵</text>
+<rect x="725.0" y="325.0" width="150" height="40" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="800" y="343" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">書斎</text>
+<text x="800" y="360" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">火かき棒・引き出し</text>
+<rect x="1125.0" y="205.0" width="120" height="330" rx="6" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="1185" y="352" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">塔の階段室</text>
+<text x="1185" y="372" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">螺旋階段</text>
+<text x="1185" y="388" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">1 階〜最上階</text>
+<path d="M 1133.0 222 L 1237.0 222" stroke="#e0b54a" stroke-width="1" opacity="0.45"/>
+<text x="1185" y="238" font-size="10" fill="#9a927f" text-anchor="middle" font-weight="400">2 階の踊り場</text>
+<path d="M 1133.0 480 L 1237.0 480" stroke="#e0b54a" stroke-width="1" opacity="0.45"/>
+<text x="1185" y="472" font-size="10" fill="#9a927f" text-anchor="middle" font-weight="400">1 階</text>
+<rect x="660.0" y="452.0" width="170" height="56" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="745" y="478" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">玄関ホール</text>
+<text x="745" y="495" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">大時計・甲冑（第二幕）</text>
+<rect x="495.0" y="457.0" width="150" height="46" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="570" y="478" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">食堂</text>
+<text x="570" y="495" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">レコード・亡霊</text>
+<rect x="330.0" y="457.0" width="150" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="405" y="478" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">肖像画の回廊</text>
+<text x="405" y="495" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">ジョナの肖像</text>
+<rect x="170.0" y="395.0" width="150" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="245" y="416" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">礼拝堂</text>
+<text x="245" y="433" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">聖油</text>
+<rect x="170.0" y="522.0" width="150" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="245" y="543" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">温室</text>
+<text x="245" y="560" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">水門・オルゴールの鍵</text>
+<rect x="30.0" y="522.0" width="130" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="95" y="543" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">墓地</text>
+<text x="95" y="560" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">トマスの墓</text>
+<rect x="122.0" y="513.0" width="40" height="17" rx="3" fill="#121419" stroke="#e0b54a" stroke-width="1"/>
+<text x="142.0" y="526.0" font-size="10" fill="#e0b54a" text-anchor="middle" font-weight="400">屋外</text>
+<rect x="850.0" y="397.0" width="130" height="46" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="915" y="418" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">音楽室</text>
+<text x="915" y="435" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">星の石</text>
+<rect x="850.0" y="462.0" width="130" height="46" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="915" y="483" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">厨房</text>
+<text x="915" y="500" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">油・マッチ</text>
+<rect x="1007.0" y="462.0" width="112" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="1063" y="483" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">使用人棟</text>
+<text x="1063" y="500" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">ハーロウの鍵束</text>
+<rect x="1007.0" y="552.0" width="112" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="1063" y="573" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">ボイラー室</text>
+<text x="1063" y="590" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">半地下・三つの弁</text>
+<rect x="700" y="556" width="90" height="24" rx="4" fill="#000" stroke="#d0603a" stroke-width="1.4"/>
+<text x="745" y="573" font-size="11" fill="#d0603a" text-anchor="middle" font-weight="400">正面玄関（闇）</text>
+<rect x="850.0" y="657.0" width="150" height="46" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="925" y="678" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">地下室</text>
+<text x="925" y="695" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">ワイン棚の隠し通路</text>
+<rect x="850.0" y="767.0" width="150" height="46" rx="5" fill="#26241f" stroke="#7d7462" stroke-width="1.2"/>
+<text x="925" y="788" font-size="15" fill="#e9e1cf" text-anchor="middle" font-weight="400">地下洞窟</text>
+<text x="925" y="805" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">第二幕は水没</text>
+<rect x="30.0" y="667.0" width="130" height="46" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="95" y="688" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">納骨堂</text>
+<text x="95" y="705" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">カトラス・ジョナの遺書</text>
+<rect x="230.0" y="795.0" width="200" height="50" rx="5" fill="#352b14" stroke="#e0b54a" stroke-width="2.2"/>
+<text x="330" y="818" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">潮の洞窟と黒鴎号</text>
+<text x="330" y="835" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">エゼキエル船長・海の星の石</text>
+<rect x="545.0" y="894.0" width="190" height="52" rx="5" fill="#352b14" stroke="#d0603a" stroke-width="2.2"/>
+<text x="640" y="918" font-size="15" fill="#f4e6bf" text-anchor="middle" font-weight="700">深淵の祭殿</text>
+<text x="640" y="935" font-size="11" fill="#9a927f" text-anchor="middle" font-weight="400">最終戦・クララ</text>
+<path d="M 815.0 279 L 905 279 L 905 148.0" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<text x="900.0" y="183.5" font-size="11" fill="#8d8676" text-anchor="middle" font-weight="400">階段</text>
+<path d="M 480.0 285 L 565.0 285" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<path d="M 575 236.0 L 575 265" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 805 236.0 L 805 265" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 800 325.0 L 800 305" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 690 452 L 690 305" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<text x="660.0" y="386.5" font-size="11" fill="#8d8676" text-anchor="middle" font-weight="400">大階段</text>
+<path d="M 645.0 480 L 660.0 480" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 480.0 480 L 495.0 480" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<path d="M 405 457.0 L 405 418 L 320.0 418" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<path d="M 405 503.0 L 405 545 L 320.0 545" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<path d="M 170.0 545 L 160.0 545" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<text x="165.0" y="565.0" font-size="11" fill="#e0b54a" text-anchor="middle" font-weight="400">庭口</text>
+<path d="M 830.0 460 L 850.0 420" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 830.0 485 L 850.0 485" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 980.0 485 L 1007.0 485" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<text x="993.5" y="469.0" font-size="11" fill="#e0b54a" text-anchor="middle" font-weight="400">裏口</text>
+<path d="M 1063 508.0 L 1063 552.0" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 1119.0 485 L 1125 480" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<path d="M 1185 205 L 1185 148.0" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 880.0 213 L 1125 213" fill="none" stroke="#8d8676" stroke-width="2.2" stroke-dasharray="2 4" stroke-linecap="round"/>
+<text x="1002.5" y="205.0" font-size="11" fill="#8d8676" text-anchor="middle" font-weight="400">隠し扉（塔から開ける）</text>
+<path d="M 812 508 L 812 640 L 925 640 L 925 657.0" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<text x="848.5" y="627.5" font-size="11" fill="#8d8676" text-anchor="middle" font-weight="400">地下室の鍵</text>
+<path d="M 925 703.0 L 925 767.0" fill="none" stroke="#8d8676" stroke-width="2.2"  stroke-linecap="round"/>
+<path d="M 95 568.0 L 95 667.0" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<text x="145.0" y="617.5" font-size="11" fill="#e0b54a" text-anchor="middle" font-weight="400">納骨堂の鍵</text>
+<path d="M 95 713.0 L 95 820 L 230.0 820" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<text x="108" y="768" font-size="11" fill="#e0b54a" text-anchor="start" font-weight="400">海への隧道</text>
+<text x="108" y="783" font-size="11" fill="#e0b54a" text-anchor="start" font-weight="400">（塔の火で潮が引く）</text>
+<path d="M 330 845.0 L 330 920 L 545.0 920" fill="none" stroke="#e0b54a" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<path d="M 925 813.0 L 925 920 L 735.0 920" fill="none" stroke="#4f7fa8" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round"/>
+<text x="860.0" y="852.5" font-size="11" fill="#4f7fa8" text-anchor="middle" font-weight="400">水路（水没）</text>
+<text x="32" y="992" font-size="12" fill="#9a927f" text-anchor="start" font-weight="400">第一幕：屋根裏 → 2 階 → 1 階 → 地下室 → 地下洞窟。第二幕：西翼・東翼と塔・子供部屋 → 墓地 → 納骨堂 → 潮の洞窟 → 深淵の祭殿。</text>
+</svg>
