@@ -3,9 +3,9 @@
 // aprons and coat skirts follow its curves instead of floating as plates.
 import * as THREE from 'three';
 import { frustum } from '../engine/geom.js';
-import { C } from './mats.js';
+import { C, spriteMat } from './mats.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, armorClips, setJ, ROOT } from './rig.js';
+import { buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, armorClips, preacherClips, setJ, ROOT } from './rig.js';
 import { loft, shell, ringAt, surfacePoint, headGeo } from './body.js';
 import { tex } from '../engine/textures.js';
 import { rng } from '../engine/util.js';
@@ -201,6 +201,104 @@ export function buildArmor() {
     },
   });
   return { parts, clips: armorClips() };
+}
+
+// ------------------------------------------------------------------ the drowned
+// The Black Gull's crew, a hundred and twenty years under the sea: bloated
+// and grey-green, in what is left of striped shirts and canvas trousers,
+// weed in their hair and barnacles on their arms. seed varies them.
+export function buildThrall({ seed = 1 } = {}) {
+  const R = rng(seed * 7 + 3);
+  const skin = [0x6e8a80, 0x74887a, 0x667e78][seed % 3];
+  const shirt = R() < 0.5 ? 0x8a8a7c : 0x7a8088, stripe = R() < 0.5 ? 0x22304a : 0x4a2428;
+  const trousers = R() < 0.5 ? 0x4a4a3e : 0x3a4048;
+  const weed = S(0x1e2e1a, true), shell = S(0xb2aea2);
+  const parts = buildHumanoid({
+    chest: [0.5, 0.31], waist: [0.47, 0.32], pelvis: [0.37, 0.16, 0.25], head: [0.215, 0.25, 0.225],
+    armW: 0.125, legW: 0.165, handW: 0.095, shoulderX: 0.215,
+    colors: { torso: shirt, arms: skin, legs: trousers, shins: skin, pelvis: trousers, skin, shoes: skin, hair: 0x1a2418 },
+    face: 'faceThrall', faceGlow: 'faceThrallGlow',
+    hair: { front: 0.5, side: -0.1, back: -0.45, thick: 0.012 },
+    extras(p, spec) {
+      const j = p.joints, T = p.surf.torso, L = spec.torsoLen;
+      // stripes, and the sleeves rotted off above the elbow
+      for (let i = 0; i < 5; i++) band(j.spine, S(stripe), T, 0.07 + i * L * 0.18, 0.1 + i * L * 0.18, 0.006);
+      for (const side of ['l', 'r']) {
+        band(j[side + 'Shoulder'], S(shirt), p.surf.upperArm, 0.0, -spec.upperArm * 0.62, 0.008, 8);
+        // trousers torn off below the knee
+        band(j[side + 'Knee'], S(trousers), p.surf.shin, 0.0, -spec.shin * 0.25, 0.006, 8);
+      }
+      // a rope for a belt
+      band(j.spine, S(0x6a5a3a), T, 0.0, 0.03, 0.012);
+      // knit cap, pushed back
+      const cap = onHead(p, loft([[0, 0.114, 0.122], [0.05, 0.106, 0.112], [0.1, 0.07, 0.076], [0.125, 0, 0]], 10), S(R() < 0.5 ? 0x4a1c1a : 0x1e2a3a), 0, 0.42, -0.12);
+      cap.rotation.x = -0.25;
+      // weed hanging off the shoulders and out of the cap
+      for (let i = 0; i < 6; i++) {
+        const sx = i % 2 ? 1 : -1;
+        const b = surfacePoint(T, L - 0.02 - R() * 0.12, sx * (0.8 + R() * 1.2), 0.01);
+        const strand = add(j.spine, loft([[0, 0.016, 0.006], [-0.18 - R() * 0.2, 0.01, 0.004], [-0.4 - R() * 0.15, 0.002, 0.002]], 4), weed, b.x, b.y, b.z);
+        strand.rotation.z = sx * (0.1 + R() * 0.2);
+      }
+      for (let i = 0; i < 3; i++) {
+        const st = onHead(p, loft([[0, 0.012, 0.005], [-0.2 - R() * 0.15, 0.006, 0.003]], 4), weed, (R() - 0.5) * 1.6, -0.2, -0.6 - R() * 0.3);
+        st.rotation.z = (R() - 0.5) * 0.6;
+      }
+      // barnacles on the forearms and the neck
+      for (let i = 0; i < 10; i++) {
+        const side = i % 2 ? 'l' : 'r';
+        const parent = i < 8 ? j[side + 'Elbow'] : j.neck;
+        const y = i < 8 ? -0.05 - R() * spec.foreArm * 0.8 : 0.02 + R() * 0.05;
+        const a = R() * Math.PI * 2;
+        const rr = i < 8 ? spec.armW * 0.45 : 0.05;
+        const bump = add(parent, new THREE.ConeGeometry(0.014 + R() * 0.008, 0.018, 5), shell, Math.sin(a) * rr, y, Math.cos(a) * rr);
+        bump.rotation.set(Math.cos(a) * 1.5, 0, -Math.sin(a) * 1.5);
+      }
+    },
+  });
+  return { parts, clips: zombieClips({ hunch: 0.35 }) };
+}
+
+// The minister of Jonah's chapel, drowned with the rest: black cassock to
+// the ankles, white collar, a faded stole, and his Bible.
+export function buildPreacher() {
+  const black = 0x15171b, skin = 0x7a948a;
+  const parts = buildHumanoid({
+    hipY: 0.95, chest: [0.46, 0.29], waist: [0.42, 0.28], head: [0.2, 0.25, 0.22],
+    colors: { torso: black, arms: black, legs: black, pelvis: black, skin, shoes: 0x0a0a0a, hair: 0x9aa49c, hands: skin },
+    face: 'faceThrall', faceGlow: 'faceThrallGlow',
+    hair: { front: 0.72, side: 0.15, back: -0.42, thick: 0.01 },
+    extras(p, spec) {
+      const j = p.joints, T = p.surf.torso, L = spec.torsoLen;
+      // the cassock hangs from the hips to the ankles
+      const skirt = [[0.1, 0.195, 0.145, 0, 0, 0.3], [-0.1, 0.22, 0.17, 0, -0.005, 0.3], [-0.45, 0.26, 0.21, 0, -0.01, 0.25], [-0.86, 0.29, 0.24, 0, -0.012, 0.2]];
+      add(j.hips, loft(skirt, 14, { caps: false }), S(black, true));
+      // collar and stole
+      add(j.neck, loft([[0.0, 0.058, 0.056], [0.032, 0.055, 0.053]], 10, { off: 0.004, caps: false }), S(0xd0ccc0));
+      const stole = S(0x3a2242);
+      plate(j.spine, stole, T, [[0.02, 0.1, 0.24], [L * 0.6, 0.12, 0.26], [L - 0.01, 0.2, 0.36]], 2, 0.008);
+      plate(j.spine, stole, T, mirror([[0.02, 0.1, 0.24], [L * 0.6, 0.12, 0.26], [L - 0.01, 0.2, 0.36]]), 2, 0.008);
+      for (const sx of [-1, 1]) {
+        const c = surfacePoint(T, L * 0.35, sx * 0.17, 0.012);
+        box(j.spine, C(0xb08a40), 0.012, 0.05, 0.004, c.x, c.y, c.z);
+        box(j.spine, C(0xb08a40), 0.032, 0.012, 0.004, c.x, c.y + 0.008, c.z);
+      }
+      // the Bible in his left hand, swollen with water
+      const bible = new THREE.Group();
+      p.lGrip.add(bible);
+      bible.rotation.set(0, 0, 0.2);
+      box(bible, C(0x1c100c), 0.15, 0.21, 0.055, 0, -0.02, 0.03);
+      box(bible, C(0xb8ac90), 0.135, 0.195, 0.05, 0.01, -0.02, 0.03);
+      box(bible, C(0xb08a40), 0.012, 0.09, 0.057, -0.03, -0.02, 0.03);
+      box(bible, C(0xb08a40), 0.05, 0.012, 0.057, -0.03, 0.0, 0.03);
+      // weed in his hair
+      for (let i = 0; i < 4; i++) {
+        const st = onHead(p, loft([[0, 0.012, 0.005], [-0.22, 0.006, 0.003]], 4), S(0x1e2e1a, true), (i - 1.5) * 0.5, 0.1, -0.7);
+        st.rotation.z = (i - 1.5) * 0.2;
+      }
+    },
+  });
+  return { parts, clips: preacherClips() };
 }
 
 // ------------------------------------------------------------------ zombies
@@ -490,6 +588,68 @@ export function buildDrownedArm({ skinColor = 0x93a294 } = {}) {
     ty = len;
   });
   return { root, wrist, fingers, thumb };
+}
+
+// ------------------------------------------------------------------ the vine
+// What became of the gardener: a mound of black weed out of the South Seas,
+// grown up through him. His face and one hand still show through it. The
+// weed's materials are its own, so it can wither on its own.
+export function buildVineMass() {
+  const root = new THREE.Group();
+  const R = rng(41);
+  const weed = new THREE.MeshPhongMaterial({ color: 0x16301e, shininess: 50, specular: 0x2a4a3a });
+  const weedDark = new THREE.MeshLambertMaterial({ color: 0x0c1a0f });
+  const mesh = (geo, m, parent) => {
+    const me = new THREE.Mesh(geo, m);
+    me.castShadow = true;
+    parent.add(me);
+    return me;
+  };
+  const mound = mesh(new THREE.SphereGeometry(0.95, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), weedDark, root);
+  mound.scale.set(1, 0.55, 1);
+  // fronds: tapering stalks out of the mound, jointed so they can sway
+  const fronds = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2 + R() * 0.4, rr = 0.25 + R() * 0.55;
+    const base = new THREE.Group();
+    base.position.set(Math.cos(a) * rr, 0.22, Math.sin(a) * rr);
+    base.rotation.set(Math.sin(a) * 0.35 + (R() - 0.5) * 0.3, 0, -Math.cos(a) * 0.35 + (R() - 0.5) * 0.3);
+    root.add(base);
+    const n = 5, len = 1.0 + R() * 1.1;
+    const segs = [];
+    let parent = base;
+    for (let k = 0; k < n; k++) {
+      const sg = new THREE.Group();
+      sg.position.y = k === 0 ? 0 : len / n;
+      parent.add(sg);
+      const r0 = 0.07 * (1 - k / n) + 0.012, r1 = 0.07 * (1 - (k + 1) / n) + 0.012;
+      mesh(loft([[-0.01, r0, r0 * 0.7], [len / n + 0.01, r1, r1 * 0.7]], 6), weed, sg);
+      segs.push(sg);
+      parent = sg;
+    }
+    fronds.push({ base, segs, ph: R() * 10, sx: Math.cos(a), sz: Math.sin(a) });
+  }
+  // the gardener, his face pressed up through the weed, one hand reaching
+  const skin = C(0x8e9a90, { flat: false });
+  const head = mesh(headGeo({ w: 0.19, h: 0.23, d: 0.21 }), [new THREE.MeshLambertMaterial({ map: tex('faceAgony') }), skin, skin], root);
+  head.position.set(0.12, 0.6, 0.62);
+  head.rotation.set(-0.35, 0.25, 0.2);
+  const arm = buildDrownedArm({ skinColor: 0x8e9a90 });
+  arm.root.position.set(-0.4, 0.3, 0.62);
+  arm.root.rotation.set(1.0, 0.2, 0.45);
+  root.add(arm.root);
+  // pale bulbs at the frond tips, like eyes
+  const bulbs = [];
+  for (let i = 0; i < 6; i++) {
+    const sp = new THREE.Sprite(spriteMat('glow', 0xd0e070, 0.6));
+    sp.scale.setScalar(0.14);
+    const f = fronds[i * 2];
+    f.segs[f.segs.length - 1].add(sp);
+    sp.position.y = 0.22;
+    sp.userData.ph = R() * 6;
+    bulbs.push(sp);
+  }
+  return { root, fronds, head, arm, bulbs, weed, weedDark, mound };
 }
 
 // ------------------------------------------------------------------ crawler

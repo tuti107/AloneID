@@ -101,15 +101,34 @@ export default {
     r.collider(1.0, 0.35, 0.4, 0.35, 0.6);
 
     r.interact({ id: 'noose', x: 0.8, z: 0.0, r: 0.45, label: '首吊りの縄', use: (g) => g.say('サイラスが首を吊った縄が、まだ梁から垂れ下がっている。\n真下には、蹴倒された椅子が転がったままだ。') });
-    r.place(F.crate({ s: 0.7 }), 3.4, -2.45, 0.1, { collide: true });
-    r.place(F.crate({ s: 0.6 }), 3.4, -1.7, -0.2, { collide: true });
-    r.place(F.crate({ s: 0.5 }), 3.38, -2.45, 0.4, { y: 0.7 });
+    if (r.game.act < 2) {
+      r.place(F.crate({ s: 0.7 }), 3.4, -2.45, 0.1, { collide: true });
+      r.place(F.crate({ s: 0.6 }), 3.4, -1.7, -0.2, { collide: true });
+      r.place(F.crate({ s: 0.5 }), 3.38, -2.45, 0.4, { y: 0.7 });
+    } else {
+      // the night's shaking brought the stack down and split the bottom crate
+      r.place(F.crate({ s: 0.7 }), 3.4, -2.45, 0.1, { collide: true });
+      const fallen = F.crate({ s: 0.5 });
+      r.place(fallen, 2.75, -1.55, 0.7, { collide: [0.5, 0.5] });
+      fallen.rotation.set(0.35, 0.7, 0.2);
+      fallen.position.y = 0.1;
+      const split = F.crate({ s: 0.6 });
+      r.place(split, 3.45, -1.65, -0.5, { collide: true });
+      split.scale.set(1, 0.55, 1);
+      r.decal('paperBlank', 3.0, -1.0, 0.7, 0.5, 0.4);
+      if (!r.game.flags['taken:canvas']) r.pickup('canvas', 3.05, 0.05, -1.05, { label: '丸めたカンバス', ry: 0.9, r: 0.45 });
+    }
     r.place(F.barrel(), 2.45, -2.6, 0, { collide: true });
     r.place(F.draped({ w: 0.9, h: 1.05, d: 0.85, seed: 3 }), -3.3, -1.3, 0.3, { collide: true });
     r.place(F.draped({ w: 1.5, h: 0.75, d: 0.7, seed: 7 }), -1.3, 2.6, 0.05, { collide: true });
     r.place(F.mannequin(), -3.35, 0.55, 0.9, { collide: true });
     r.interact({ id: 'mannequin', x: -3.35, z: 0.55, r: 0.45, label: 'トルソー', use: (g) => g.say('古い仕立て用のトルソー。エレノア夫人のものだろうか。\n暗がりで見ると、まるで人が立っているようだ。') });
-    r.interact({ id: 'crates', x: 3.3, z: -2.0, r: 0.7, label: '木箱', use: (g) => g.say('木箱には「ボストン港経由」の焼き印。中身は古い書類ばかりだ。') });
+    r.interact({
+      id: 'crates', x: 3.3, z: -2.0, r: 0.7, label: '木箱',
+      use: (gg) => gg.say(gg.act < 2
+        ? '木箱には「ボストン港経由」の焼き印。中身は古い書類ばかりだ。\n一番下の箱だけは「ハートウェル画廊」の札が貼られ、釘で固く打ち付けられている。'
+        : '崩れ落ちた木箱の一つが割れて、古い書類が床に散らばっている。\n「ハートウェル画廊」の札が、割れた板にぶら下がっている。'),
+    });
     r.place(F.rockingChair(), 1.6, -2.25, -0.6, { collide: true });
     const p1 = F.painting({ w: 0.6, h: 0.75, art: 'portraitOld', frame: 'gold' });
     p1.position.set(0.3, 0.49, 2.88);

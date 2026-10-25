@@ -132,6 +132,52 @@ function windingKey() {
   g.add(ring);
   return g;
 }
+function rolledCanvas() {
+  const g = G();
+  const roll = F.cy(g, C(0xc8b896), 0.04, 0.04, 0.5, 0, -0.25, 0, 10);
+  roll.rotation.z = Math.PI / 2;
+  roll.position.set(0, 0, 0);
+  for (const x of [-0.12, 0.12]) {
+    const tie = new THREE.Mesh(new THREE.TorusGeometry(0.042, 0.006, 4, 10), C(0x5a3a1a));
+    tie.rotation.y = Math.PI / 2;
+    tie.position.x = x;
+    g.add(tie);
+  }
+  return g;
+}
+function oilVial() {
+  const g = G();
+  const pts = [new THREE.Vector2(0.0, 0), new THREE.Vector2(0.035, 0.005), new THREE.Vector2(0.04, 0.05), new THREE.Vector2(0.03, 0.08), new THREE.Vector2(0.012, 0.1), new THREE.Vector2(0.012, 0.13)];
+  g.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 10), C(0xc07a20, { phong: true, shininess: 100, specular: 0xffeecc, transparent: true, opacity: 0.85 })));
+  F.cy(g, C(0x6a1010), 0.018, 0.018, 0.025, 0, 0.13, 0, 8);
+  F.bx(g, C(0xd8c890), 0.05, 0.03, 0.002, 0, 0.04, 0.038);
+  return g;
+}
+function boxKey() {
+  const g = G();
+  const b = brass();
+  // a winding key with a butterfly bow
+  for (const sx of [-1, 1]) {
+    const w = new THREE.Mesh(new THREE.CircleGeometry(0.03, 10), b);
+    w.position.set(sx * 0.028, 0.06, 0);
+    w.scale.set(1, 0.75, 1);
+    g.add(w);
+  }
+  F.cy(g, b, 0.007, 0.007, 0.07, 0, -0.01, 0, 6);
+  F.bx(g, b, 0.018, 0.02, 0.012, 0, -0.02, 0);
+  return g;
+}
+function toyBoat() {
+  const g = G();
+  const hull = F.bx(g, C(0x8a2a1a), 0.22, 0.05, 0.07, 0, 0, 0);
+  void hull;
+  F.bx(g, C(0xd8ccb0), 0.2, 0.012, 0.06, 0, 0.05, 0);
+  F.cy(g, C(0x5a3a1a), 0.004, 0.004, 0.22, 0, 0.05, 0, 5);
+  const sail = new THREE.Mesh(new THREE.PlaneGeometry(0.11, 0.15), C(0xe0d8c0, { side: THREE.DoubleSide }));
+  sail.position.set(0.04, 0.16, 0);
+  g.add(sail);
+  return g;
+}
 function recordDisc() {
   const g = G();
   const rec = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.006, 20), [M('woodBlack'), M('recordLabel', { ts: [1, 1] }), M('woodBlack')]);
@@ -184,6 +230,13 @@ export const ITEMS = {
   eleanor: { name: 'エレノアの手紙', actions: ['read'], doc: 'eleanor', model: letter },
   photo: { name: '古い写真', actions: ['read'], doc: 'photo', model: photo },
   claraNote: { name: 'クララの手帳', actions: ['read'], doc: 'clara', model: book(0x3a2430) },
+  holyOil: { name: '聖油', key: true, actions: ['use', 'examine'], desc: '南洋の香木を練り込んだ、琥珀色の油の小瓶。\n封蝋に、星と炎の印が押されている。', model: oilVial },
+  prayer: { name: 'ジョナの祈祷書', actions: ['read'], doc: 'prayer', model: book(0x2a1a2a) },
+  gardener: { name: '庭師の作業帳', actions: ['read'], doc: 'gardener', model: book(0x3a4a2a, false) },
+  musicBoxKey: { name: 'オルゴールの鍵', key: true, actions: ['use', 'examine'], desc: '蝶の形の小さなぜんまい鍵。泥にまみれている。\n子供の玩具のものだろうか。', model: boxKey },
+  toyBoat: { name: 'おもちゃの帆船', key: true, actions: ['use', 'examine'], desc: '手のひらほどの木の帆船。赤い船体に、子供の字で「トマス号」と書いてある。', model: toyBoat },
+  gardenKey: { name: '庭口の鍵', key: true, actions: ['use', 'examine'], desc: '温室から庭へ出る扉の、鉄の鍵。黒い草の汁で濡れている。', model: keyModel(M('iron'), 1.2) },
+  canvas: { name: 'ジョナの肖像のカンバス', key: true, actions: ['use', 'examine'], desc: '丸めた古いカンバス。広げると、厳めしい老人が描かれている。\n裏に「Ｊ・Ａ　一八三五年」とある。', model: rolledCanvas },
   brassKey: { name: '真鍮の小さな鍵', key: true, actions: ['use', 'examine'], desc: '小さな真鍮の鍵。机の引き出しのものだろうか。', model: keyModel(brass, 0.8) },
   bedroomKey: { name: '寝室の鍵', key: true, actions: ['use', 'examine'], desc: '「主寝室」と刻まれた鉄の鍵。', model: keyModel(M('iron'), 1.1) },
   clockKey: { name: '時計のぜんまい鍵', key: true, actions: ['use', 'examine'], desc: '大時計のぜんまいを巻くための鍵。サイラスの首に掛かっていた。', model: windingKey },

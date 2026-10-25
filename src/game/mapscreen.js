@@ -168,13 +168,22 @@ export class MapModal extends Modal {
       c.lineWidth = (here ? 2 : 1.4) * px;
       c.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
       const name = ROOMS[id] ? ROOMS[id].name : id;
+      const bw = b[0] - a[0], bh = b[1] - a[1];
       let k = fontPx;
       c.font = font(k);
-      while (k > 7 && c.measureText(name).width > (b[0] - a[0]) - 6 * px) { k -= 0.5; c.font = font(k); }
       c.fillStyle = here ? '#fff' : INK;
       c.textAlign = 'center';
       c.textBaseline = 'middle';
-      c.fillText(name, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+      if (c.measureText(name).width > bw - 6 * px && bh > bw * 1.8) {
+        // a long narrow room: its name runs down it, one character under another
+        const chars = [...name];
+        while (k > 7 && chars.length * k * 1.08 * dpr > bh - 6 * px) { k -= 0.5; c.font = font(k); }
+        const step = k * 1.08 * dpr, y0 = (a[1] + b[1]) / 2 - ((chars.length - 1) * step) / 2;
+        chars.forEach((ch, i) => c.fillText(ch, (a[0] + b[0]) / 2, y0 + i * step));
+      } else {
+        while (k > 7 && c.measureText(name).width > bw - 6 * px) { k -= 0.5; c.font = font(k); }
+        c.fillText(name, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+      }
     }
     // doors: a bright gap across the wall
     for (const t of doorTicks) {

@@ -21,6 +21,9 @@ export const MAP_ROOMS = {
   dining: { floor: '1f', rect: [-5, -3, 5, 3], box: [-17, -1.8, -7, 4.2] },
   kitchen: { floor: '1f', rect: [-4, -3, 4, 3], box: [8.5, -5.4, 16.5, 0.6] },
   music: { floor: '1f', rect: [-4, -3.5, 4, 3.5], box: [8.5, 1.4, 16.5, 8.4] },
+  gallery: { floor: '1f', rect: [-1.8, -8, 1.8, 8], box: [-20.6, -8.8, -17, 7.2] },
+  chapel: { floor: '1f', rect: [-4.5, -6, 4.5, 6], box: [-23.3, -20.8, -14.3, -8.8] },
+  conservatory: { floor: '1f', rect: [-5, -4.5, 5, 4.5], box: [-23.8, 7.2, -13.8, 16.2] },
   cellar: { floor: 'b1', rect: [-5, -3, 5, 3], box: [-5, -3, 5, 3] },
   cavern: { floor: 'b1', rect: [-7.2, -6.2, 6.8, 4.8], box: [6.4, -7, 20.4, 4] },
 };
@@ -37,6 +40,9 @@ export const MAP_LINKS = [
   { a: 'hall', ap: [7, -0.8], b: 'kitchen', bp: [-4, 1.6] },
   { a: 'hall', ap: [7, -3.9], b: 'cellar', bp: [-5, 0.3], door: 'cellarDoor' },
   { a: 'cellar', ap: [5, 0.2], b: 'cavern', bp: [-7.2, 1] },
+  { a: 'dining', ap: [-5, -2], b: 'gallery', bp: [1.8, 0], door: 'galleryDoor' },
+  { a: 'gallery', ap: [0, -8], b: 'chapel', bp: [0, 6], door: 'chapelDoor' },
+  { a: 'gallery', ap: [0, 8], b: 'conservatory', bp: [0, -4.5] },
 ];
 
 // Marks drawn on a room's wall that lead nowhere you can go.

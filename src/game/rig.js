@@ -862,6 +862,31 @@ export function zombieClips(o = {}) {
   };
 }
 
+// The drowned preacher: a zombie that preaches at the pulpit, falls on its
+// back when struck down, and gets up again.
+export function preacherClips() {
+  const base = zombieClips({ hunch: 0.2 });
+  return {
+    ...base,
+    death: humanClips().death,
+    // arms up to an empty congregation, swaying, head thrown back
+    preach: {
+      loop: true,
+      fn(t, p) {
+        const sw = S(t * 1.3);
+        setJ(p, 'lShoulder', -2.3 + S(t * 2.1) * 0.25, 0, 0.35);
+        setJ(p, 'rShoulder', -2.1 + S(t * 2.1 + 1.2) * 0.25, 0, -0.35);
+        setJ(p, 'lElbow', -0.35);
+        setJ(p, 'rElbow', -0.45);
+        setJ(p, 'spine', -0.18 + sw * 0.05, sw * 0.12, 0);
+        setJ(p, 'neck', -0.35 + S(t * 3.1) * 0.08, 0, S(t * 0.9) * 0.1);
+        setJ(p, 'lKnee', 0.08);
+        setJ(p, 'rKnee', 0.08);
+      },
+    },
+  };
+}
+
 // A suit of armour come down off its plinth, halberd in the right hand:
 // stiff and heavy, with one wide sweeping blow. The halberd stands upright
 // in its fist while the forearm is level (see buildArmor).

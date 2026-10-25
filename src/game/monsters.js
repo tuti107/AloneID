@@ -5,6 +5,7 @@ import * as CH from './characters.js';
 import { resolveCircle, separateCircles } from '../engine/collision.js';
 import { angleDiff, approachAngle, approach, damp, clamp } from '../engine/util.js';
 import { tex } from '../engine/textures.js';
+import { loft } from './body.js';
 
 const TYPES = {
   butler: { build: CH.buildButler, hp: 45, dmg: 12, speed: 0.78, turn: 2.6, range: 1.05, sight: 9, cd: 0.8, radius: 0.3, voice: 'zombie', stagger: 0 },
@@ -13,6 +14,8 @@ const TYPES = {
   silas: { build: CH.buildSilas, hp: 75, dmg: 15, speed: 0.92, turn: 2.8, range: 1.05, sight: 10, cd: 0.7, radius: 0.3, voice: 'zombie', stagger: 0 },
   cook: { build: CH.buildCook, hp: 115, dmg: 22, speed: 0.82, turn: 2.2, range: 1.3, sight: 10, cd: 1.1, radius: 0.42, voice: 'cook', stagger: 14 },
   ghoul: { build: CH.buildGhoul, hp: 32, dmg: 10, speed: 2.3, turn: 6, range: 1.0, sight: 12, cd: 0.6, radius: 0.3, voice: 'ghoul', stagger: 0 },
+  // the drowned crew: slow, hard to put down, heavy-handed
+  thrall: { build: (o) => CH.buildThrall({ seed: o.seed || 1 }), hp: 64, dmg: 15, speed: 0.62, turn: 2.2, range: 1.1, sight: 10, cd: 1.0, radius: 0.33, voice: 'thrall', stagger: 14 },
 };
 
 export class Monster {
@@ -23,7 +26,7 @@ export class Monster {
     this.id = o.id;
     this.type = o.type;
     this.T = { ...T, ...(o.stats || {}) };
-    const { parts, clips } = T.build();
+    const { parts, clips } = T.build(o);
     this.parts = parts;
     this.root = parts.root;
     this.anim = new Animator(parts, clips);
@@ -560,8 +563,205 @@ export class Armor extends Monster {
   }
 }
 
+// The drowned preacher of Jonah's chapel. Struck down, he lies a moment
+// and gets up again, twice; the third time he stays down.
+const PREACHER_T = { build: CH.buildPreacher, hp: 50, dmg: 18, speed: 0.82, turn: 2.4, range: 1.15, sight: 14, cd: 1.0, radius: 0.32, voice: 'preacher', stagger: 12 };
+export class Preacher extends Monster {
+  constructor(game, room, o) {
+    super(game, room, { ...o, type: 'preacher', T: PREACHER_T });
+    this.lives = o.lives ?? 3;
+    this.downT = 0;
+    if (o.preaching) { this.state = 'preach'; this.anim.play('preach', { fade: 0 }); }
+  }
+  get hunting() { return super.hunting || this.state === 'down'; }
+  wake() {
+    if (this.state === 'preach') this.setState('chase');
+    else super.wake();
+  }
+  update(dt) {
+    if (this.hidden) return;
+    if (this.state === 'preach') {
+      this.anim.play('preach');
+      this.mutterT = (this.mutterT || 0) - dt;
+      if (this.mutterT <= 0) { this.mutterT = 1.6 + Math.random() * 1.4; this.game.audio.sfx('preacherGrowl', { at: this.pos }); }
+      const evs = this.anim.update(dt);
+      void evs;
+      this.sync();
+      return;
+    }
+    if (this.state === 'down') {
+      // lying there; then up again
+      this.stateT += dt;
+      this.anim.update(dt);
+      if (this.stateT > 2.4 && this.anim.cur !== 'rise') {
+        this.anim.play('rise', { restart: true, fade: 0.15 });
+        this.game.audio.sfx('preacherNotice', { at: this.pos });
+      }
+      if (this.anim.cur === 'rise' && this.anim.finished) {
+        this.hp = this.maxHp;
+        this.solid = true;
+        this.invulnerable = false;
+        this.setState('chase');
+        this.attackCd = 0.8;
+      }
+      return;
+    }
+    super.update(dt);
+  }
+  damage(n, fromX, fromZ, knock = 1) {
+    if (this.state === 'preach') this.wake();
+    return super.damage(n, fromX, fromZ, knock);
+  }
+  die() {
+    this.lives--;
+    if (this.lives > 0) {
+      this.setState('down');
+      this.invulnerable = true;
+      this.solid = false;
+      this.anim.play('death', { restart: true, fade: 0.1 });
+      this.game.audio.sfx('preacherHurt', { at: this.pos });
+      if (this.onDown) this.onDown(this);
+      return;
+    }
+    super.die();
+  }
+  serialize() {
+    // down for the moment: it is up again by the time anyone comes back
+    return { ...super.serialize(), hp: this.state === 'down' ? this.maxHp : this.hp, lives: this.lives, preaching: this.state === 'preach' };
+  }
+  restore(d) {
+    super.restore(d);
+    if (d.lives) this.lives = d.lives;
+    if (d.preaching && !d.dead) { this.state = 'preach'; this.anim.play('preach', { fade: 0 }); }
+  }
+}
+
+// The weed that took the gardener: rooted to its corner, it whips at
+// anything that comes near. A mark on the floor shows where a lash will
+// fall a moment before it does.
+const VINE_T = {
+  build: () => {
+    const v = CH.buildVineMass();
+    const parts = { root: v.root, joints: { hips: new THREE.Group() }, list: [], hipBase: new THREE.Vector3(), vine: v };
+    const clip = (loop, dur) => ({ loop, dur, fn() {} });
+    return { parts, clips: { idle: clip(true, 1), walk: clip(true, 1), attack: clip(false, 1), hit: clip(false, 0.3), death: clip(false, 1.5) } };
+  },
+  hp: 80, dmg: 16, speed: 0, turn: 0, range: 4.6, sight: 6, cd: 2.0, radius: 0.85, voice: 'vine', stagger: 9999,
+};
+export class Vine extends Monster {
+  constructor(game, room, o) {
+    super(game, room, { ...o, type: 'vine', T: VINE_T });
+    this.v = this.parts.vine;
+    this.attackT = 1.4;
+    this.lashes = [];
+    this.wither = 0;
+    this.tint = new THREE.Color(0x16301e);
+  }
+  get hunting() { return false; }
+  update(dt) {
+    if (this.hidden) return;
+    const g = this.game, p = this.player, v = this.v, t = g.time;
+    this.stateT += dt;
+    this.xray.visible = false;
+    const dead = this.state === 'dead';
+    if (dead && this.wither < 1) {
+      this.wither = Math.min(1, this.wither + dt / 2.5);
+      v.weed.color.copy(this.tint).lerp(new THREE.Color(0x2a2214), this.wither);
+    }
+    for (const f of v.fronds) {
+      f.segs.forEach((sg, k) => {
+        const live = 1 - this.wither;
+        sg.rotation.x = Math.sin(t * 1.3 + f.ph + k * 0.6) * 0.12 * live + f.sz * this.wither * 0.3;
+        sg.rotation.z = Math.cos(t * 1.1 + f.ph + k * 0.5) * 0.1 * live - f.sx * this.wither * 0.3;
+      });
+    }
+    for (const b of v.bulbs) b.material.opacity = (0.4 + 0.25 * Math.sin(t * 2.2 + b.userData.ph)) * (1 - this.wither);
+    if (!dead) {
+      const d = Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z);
+      if (p.alive && d < this.T.range) {
+        if (!this.noticed) { this.noticed = true; g.audio.sfx('vineNotice', { at: this.pos }); }
+        this.state = 'chase';
+        this.attackT -= dt;
+        if (this.attackT <= 0) {
+          this.attackT = this.T.cd * (0.8 + Math.random() * 0.4);
+          this.lash(p.pos.x + (Math.random() - 0.5) * 0.5, p.pos.z + (Math.random() - 0.5) * 0.5);
+        }
+      } else if (this.state === 'chase') this.state = 'idle';
+    }
+    this.updateLashes(dt);
+    this.sync();
+  }
+  // a frond rears up, then comes down where the mark is
+  lash(x, z) {
+    const room = this.room, g = this.game;
+    const dx = x - this.pos.x, dz = z - this.pos.z, l = Math.hypot(dx, dz) || 1;
+    const bx = this.pos.x + (dx / l) * 0.7, bz = this.pos.z + (dz / l) * 0.7;
+    const marker = new THREE.Mesh(new THREE.CircleGeometry(0.75, 14), new THREE.MeshBasicMaterial({ color: 0x142a10, transparent: true, opacity: 0.2, depthWrite: false }));
+    marker.rotation.x = -Math.PI / 2;
+    marker.position.set(x, 0.02, z);
+    room.dynamic.add(marker);
+    const group = new THREE.Group();
+    group.position.set(bx, 0.2, bz);
+    group.rotation.y = Math.atan2(x - bx, z - bz);
+    room.dynamic.add(group);
+    const arm = new THREE.Group();
+    group.add(arm);
+    const len = Math.hypot(x - bx, z - bz) + 0.4, n = 7, sl = len / n;
+    let parent = arm;
+    for (let k = 0; k < n; k++) {
+      const seg = new THREE.Group();
+      seg.position.y = k === 0 ? 0 : sl;
+      parent.add(seg);
+      const r0 = 0.08 * (1 - k / n) + 0.02, r1 = 0.08 * (1 - (k + 1) / n) + 0.02;
+      const m = new THREE.Mesh(loft([[-0.02, r0, r0 * 0.75], [sl + 0.02, r1, r1 * 0.75]], 6), this.v.weed);
+      m.castShadow = true;
+      seg.add(m);
+      seg.rotation.x = 0.06;
+      parent = seg;
+    }
+    arm.rotation.x = Math.PI / 2 - 1.3;
+    this.lashes.push({ x, z, bx, bz, t: 0, marker, group, arm, hit: false });
+    g.audio.sfx('vineAttack', { at: { x: bx, y: 0, z: bz } });
+  }
+  updateLashes(dt) {
+    const g = this.game, p = this.player;
+    for (let i = this.lashes.length - 1; i >= 0; i--) {
+      const s = this.lashes[i];
+      s.t += dt;
+      const k = s.t;
+      s.marker.scale.setScalar(Math.min(1, k / 0.85) * 1.2);
+      s.marker.material.opacity = k < 0.85 ? 0.22 + k * 0.5 : Math.max(0, 0.65 - (k - 0.85) * 1.5);
+      let pitch;
+      if (k < 0.85) pitch = -1.3 + k * 0.2;
+      else if (k < 0.98) pitch = -1.13 + ((k - 0.85) / 0.13) * 1.13;
+      else if (k < 1.5) pitch = 0;
+      else pitch = -(k - 1.5) * 2.2;
+      s.arm.rotation.x = Math.PI / 2 + pitch;
+      s.arm.position.y = k > 1.5 ? -(k - 1.5) * 2.5 : 0;
+      if (!s.hit && k >= 0.98) {
+        s.hit = true;
+        g.audio.sfx('thud', { at: { x: s.x, y: 0, z: s.z } });
+        g.burst('dust', s.x, 0.1, s.z, { n: 6 });
+        g.shake(0.06, 0.2);
+        if (this.alive && p.alive && Math.hypot(p.pos.x - s.x, p.pos.z - s.z) < 0.85) p.damage(this.T.dmg, s.bx, s.bz, { knock: 3.5 });
+      }
+      if (k > 2.2) {
+        this.room.dynamic.remove(s.group);
+        this.room.dynamic.remove(s.marker);
+        this.lashes.splice(i, 1);
+      }
+    }
+  }
+  restore(d) {
+    super.restore(d);
+    if (d.dead) { this.wither = 0.999; this.v.weed.color.set(0x2a2214); }
+  }
+}
+
 export function makeMonster(game, room, o) {
+  if (o.type === 'vine') return new Vine(game, room, o);
   if (o.type === 'armor') return new Armor(game, room, o);
+  if (o.type === 'preacher') return new Preacher(game, room, o);
   if (o.type === 'ghoul') return new Ghoul(game, room, o);
   if (o.type === 'crawler') return new Crawler(game, room, o);
   if (o.type === 'ghost') return new Ghost(game, room, o);

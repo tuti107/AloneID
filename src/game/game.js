@@ -628,7 +628,7 @@ export class Game {
     const p = this.player;
     let best = null;
     for (const m of this.room.monsters) {
-      if (!m.alive || m.hidden || m.invulnerable || m.state === 'dormant') continue;
+      if (!m.alive || m.hidden || m.invulnerable || m.state === 'dormant' || m.state === 'down') continue;
       const d = Math.hypot(m.pos.x - p.pos.x, m.pos.z - p.pos.z) - m.radius;
       if (d > range || (best && d >= best.d)) continue;
       if (!this.room.nav.sight(p.pos.x, p.pos.z, m.pos.x, m.pos.z)) continue;
@@ -689,7 +689,7 @@ export class Game {
       const d = Math.hypot(dx, dz);
       if (d > def.range + m.radius) continue;
       if (Math.abs(angleDiff(p.rot, Math.atan2(dx, dz))) > def.arc) continue;
-      if (m.invulnerable) { ghost = true; continue; }
+      if (m.invulnerable) { if (m.ghostly) ghost = true; continue; }
       if (m.damage(def.dmg, p.pos.x, p.pos.z, def.knock)) {
         hit = true;
         burst(this.room, m.pos.x - (dx / (d || 1)) * m.radius, m.pos.y + 1.1, m.pos.z - (dz / (d || 1)) * m.radius, m.type === 'crawler' || m.type === 'ghoul' ? 'ichor' : 'blood', { dir: [dx / (d || 1), dz / (d || 1)] });
@@ -707,7 +707,7 @@ export class Game {
   autoAim(p, arc, range) {
     let best = null, bestScore = 1e9;
     for (const m of this.room.monsters) {
-      if (!m.alive || m.hidden || m.state === 'dormant') continue;
+      if (!m.alive || m.hidden || m.state === 'dormant' || m.state === 'down') continue;
       const dx = m.pos.x - p.pos.x, dz = m.pos.z - p.pos.z;
       const d = Math.hypot(dx, dz);
       if (d > range) continue;

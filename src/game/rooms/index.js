@@ -9,5 +9,8 @@ import music from './music.js';
 import kitchen from './kitchen.js';
 import cellar from './cellar.js';
 import cavern from './cavern.js';
+import gallery from './gallery.js';
+import chapel from './chapel.js';
+import conservatory from './conservatory.js';
 
-export const ROOMS = { attic, corridor, library, bathroom, bedroom, hall, dining, music, kitchen, cellar, cavern };
+export const ROOMS = { attic, corridor, library, bathroom, bedroom, hall, dining, music, kitchen, cellar, cavern, gallery, chapel, conservatory };

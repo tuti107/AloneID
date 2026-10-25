@@ -1036,6 +1036,128 @@ function face({ skin, eye = '#e6dece', iris = '#3a2616', brows = '#2a1a10', lips
   return c;
 }
 
+// The chapel's window, read from the bottom up: the sea, a green star risen
+// out of it, the flame the star kindles, and the dawn at the top.
+function stainedGlass() {
+  const w = 64, h = 100;
+  const [c, g] = mk(w, h);
+  const rand = rng(181);
+  g.fillStyle = '#060606';
+  g.fillRect(0, 0, w, h);
+  const band = (y0, y1, base, draw) => {
+    g.save();
+    g.beginPath();
+    g.rect(3, y0, w - 6, y1 - y0);
+    g.clip();
+    g.fillStyle = base;
+    g.fillRect(0, y0, w, y1 - y0);
+    draw(y0, y1);
+    // lead between the pieces
+    g.strokeStyle = '#050505';
+    g.lineWidth = 1.2;
+    for (let i = 0; i < 7; i++) {
+      g.beginPath();
+      g.moveTo(3 + rand() * (w - 6), y0);
+      g.lineTo(3 + rand() * (w - 6), y1);
+      g.stroke();
+    }
+    g.restore();
+    g.fillStyle = '#050505';
+    g.fillRect(0, y1 - 1, w, 2);
+  };
+  // the sea
+  band(76, 97, '#163a80', () => {
+    g.strokeStyle = '#5a9ae0';
+    g.lineWidth = 2;
+    for (let k = 0; k < 3; k++) {
+      g.beginPath();
+      for (let x = 3; x <= w - 3; x += 2) g.lineTo(x, 82 + k * 6 + Math.sin(x * 0.35 + k) * 2);
+      g.stroke();
+    }
+  });
+  // the star
+  band(52, 76, '#10401c', () => {
+    g.fillStyle = '#6ae07a';
+    g.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? 4 : 10, a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      g.lineTo(w / 2 + Math.cos(a) * r, 64 + Math.sin(a) * r);
+    }
+    g.fill();
+  });
+  // the flame
+  band(28, 52, '#5a100a', () => {
+    g.fillStyle = '#ff6a20';
+    g.beginPath();
+    g.moveTo(w / 2, 30);
+    g.quadraticCurveTo(w / 2 + 12, 42, w / 2 + 6, 50);
+    g.lineTo(w / 2 - 6, 50);
+    g.quadraticCurveTo(w / 2 - 12, 42, w / 2, 30);
+    g.fill();
+    g.fillStyle = '#ffd060';
+    g.beginPath();
+    g.moveTo(w / 2, 38);
+    g.quadraticCurveTo(w / 2 + 5, 45, w / 2 + 2, 50);
+    g.lineTo(w / 2 - 2, 50);
+    g.quadraticCurveTo(w / 2 - 5, 45, w / 2, 38);
+    g.fill();
+  });
+  // the dawn, in the arch
+  band(3, 28, '#6a5008', () => {
+    g.fillStyle = '#ffd848';
+    g.beginPath();
+    g.arc(w / 2, 22, 7, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#ffe890';
+    g.lineWidth = 1.5;
+    for (let i = 0; i < 9; i++) {
+      const a = Math.PI + (i / 8) * Math.PI;
+      g.beginPath();
+      g.moveTo(w / 2 + Math.cos(a) * 9, 22 + Math.sin(a) * 9);
+      g.lineTo(w / 2 + Math.cos(a) * 18, 22 + Math.sin(a) * 18);
+      g.stroke();
+    }
+  });
+  // pointed arch: everything outside it is stone
+  g.fillStyle = '#060606';
+  g.beginPath();
+  g.moveTo(0, 0);
+  g.lineTo(0, 26);
+  g.quadraticCurveTo(2, 4, w / 2, 0);
+  g.quadraticCurveTo(w - 2, 4, w, 26);
+  g.lineTo(w, 0);
+  g.fill();
+  c.opts = { repeat: false };
+  return c;
+}
+
+// A man standing in the rain, as the lightning shows him: white on clear,
+// to be tinted black.
+function silhouette() {
+  const [c, g] = mk(32, 80);
+  g.clearRect(0, 0, 32, 80);
+  g.fillStyle = '#fff';
+  g.beginPath();
+  g.arc(16, 9, 6, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.moveTo(5, 23);
+  g.quadraticCurveTo(16, 14, 27, 23);
+  g.lineTo(28, 50);
+  g.lineTo(23, 51);
+  g.lineTo(21, 79);
+  g.lineTo(17, 79);
+  g.lineTo(16, 56);
+  g.lineTo(15, 79);
+  g.lineTo(11, 79);
+  g.lineTo(9, 51);
+  g.lineTo(4, 50);
+  g.closePath();
+  g.fill();
+  c.opts = { repeat: false };
+  return c;
+}
+
 // The armour's helm: a visor slit and breathing holes in iron; the glow map
 // is what burns behind the slit once it wakes.
 function helmFace(glow) {
@@ -1060,6 +1182,8 @@ function helmFace(glow) {
 }
 
 const BUILDERS = {
+  stainedGlass: () => stainedGlass(),
+  silhouette: () => silhouette(),
   faceArmor: () => helmFace(false),
   faceArmorGlow: () => helmFace(true),
   woodFloor: () => woodPlanks({ seed: 11, base: 0x6b4426, dark: 0x2a170b }),
@@ -1104,6 +1228,8 @@ const BUILDERS = {
   portraitOld: () => portrait({ seed: 112, bg: [30, 35, 30], cloth: [20, 24, 30], skin: [170, 150, 120] }),
   portraitWoman: () => portrait({ seed: 113, bg: [40, 30, 40], cloth: [60, 20, 30], skin: [210, 180, 160], kind: 'woman' }),
   portraitCaptain: () => portrait({ seed: 114, bg: [20, 25, 35], cloth: [15, 18, 40], skin: [160, 130, 100] }),
+  portraitLady: () => portrait({ seed: 115, bg: [30, 32, 44], cloth: [36, 44, 64], skin: [200, 176, 156], kind: 'woman' }),
+  portraitBoy: () => portrait({ seed: 116, bg: [36, 34, 30], cloth: [28, 30, 40], skin: [214, 190, 170], kind: 'boy' }),
   seascape: () => seascape({ seed: 121 }),
   clockFace: () => clockFace(),
   nightWindow: () => nightWindow({ seed: 131 }),
@@ -1135,6 +1261,8 @@ const BUILDERS = {
   mirrorAge: () => mirrorAge(),
   facePlayer: () => face({ skin: '#c89a78', mustache: '#3a2414', brows: '#2a1a10', lips: '#9a5e50' }),
   faceClara: () => face({ skin: '#e4c4ae', brows: '#3a2214', iris: '#2e4a5a', lips: '#a8404c', female: true }),
+  faceThrall: () => face({ skin: '#6e8a80', eye: '#c8d4c8', lips: '#2a3a34', mouth: '#081210', brows: '#283430', kind: 'dead' }),
+  faceThrallGlow: () => face({ eye: '#b8e0d0', kind: 'dead', glow: true }),
   faceZombie: () => face({ skin: '#7a8a6a', eye: '#c8c090', lips: '#4a3a3a', mouth: '#1a0606', brows: '#3a3a30', kind: 'dead' }),
   faceZombieGlow: () => face({ eye: '#d8d090', kind: 'dead', glow: true }),
   faceMaid: () => face({ skin: '#7e8c72', eye: '#c8c090', lips: '#4a2a30', mouth: '#1a0606', brows: '#2a1a12', kind: 'dead', female: true }),

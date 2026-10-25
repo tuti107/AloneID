@@ -705,6 +705,23 @@ const SFX = {
   armorAttack(t, d) { for (let i = 0; i < 4; i++) this.noise(t + i * 0.08, 0.06, d, { bp: rand(900, 1500), q: 6, vol: 0.4 }); this.noise(t + 0.85, 0.35, d, { bp: 700, bp2: 2600, q: 1.2, vol: 1.2, attack: 0.08 }); },
   armorHurt(t, d) { for (const [f, v] of [[523, 0.16], [1347, 0.1], [2211, 0.06], [3120, 0.04]]) this.tone(t, f * rand(0.97, 1.03), 0.7, d, { type: 'triangle', vol: v, attack: 0.001 }); this.noise(t, 0.05, d, { bp: 3000, q: 2, vol: 0.5 }); },
   armorDie(t, d) { for (let i = 0; i < 7; i++) { const tt = t + rand(0.4, 1.6); this.tone(tt, rand(400, 1400), 0.5, d, { type: 'triangle', vol: 0.08, attack: 0.001 }); this.noise(tt, 0.05, d, { bp: rand(1500, 3000), q: 3, vol: 0.4 }); } this.voice(t, 70, 40, 1.4, d, { vol: 0.4, gargle: 5, formants: [[280, 5, 1], [560, 6, 0.5]] }); },
+  // the drowned: they gurgle; the preacher still preaches, through the water
+  thrallNotice(t, d) { this.voice(t, rand(80, 95), 60, 1.5, d, { vol: 0.55, gargle: 16, formants: [[360, 5, 1], [720, 6, 0.6]], breath: 700 }); SFX.bubble.call(this, t + 0.2, d); },
+  thrallGrowl(t, d) { this.voice(t, rand(65, 85), rand(55, 70), rand(1.0, 1.6), d, { vol: 0.3, gargle: rand(14, 20), formants: [[340, 5, 1], [680, 6, 0.5]] }); for (let i = 0; i < 6; i++) this.tone(t + rand(0, 1.2), rand(120, 300), 0.08, d, { f2: rand(300, 600), vol: 0.06 }); },
+  thrallAttack(t, d) { this.voice(t, 110, 75, 0.7, d, { vol: 0.5, gargle: 18, formants: [[480, 4, 1], [950, 5, 0.6]], breath: 1100 }); },
+  thrallHurt(t, d) { this.voice(t, 120, 85, 0.4, d, { vol: 0.45, gargle: 22 }); this.noise(t, 0.2, d, { lp: 900, vol: 0.4 }); },
+  thrallDie(t, d) { this.voice(t, 95, 40, 1.8, d, { vol: 0.5, gargle: 12, formants: [[360, 5, 1], [700, 6, 0.5]], breath: 600 }); SFX.splash.call(this, t + 0.9, d); },
+  preacherNotice(t, d) { for (let i = 0; i < 4; i++) this.voice(t + i * 0.32, rand(88, 104), rand(70, 84), 0.3, d, { vol: 0.5, gargle: 9, formants: [[rand(420, 700), 6, 1], [rand(1000, 1500), 7, 0.6]], breath: 900 }); },
+  preacherGrowl(t, d) { for (let i = 0; i < 5; i++) this.voice(t + i * 0.24 + rand(0, 0.08), rand(84, 98), rand(74, 86), 0.2, d, { vol: 0.22, gargle: 8, formants: [[rand(380, 760), 6, 1], [rand(950, 1600), 7, 0.5]] }); },
+  preacherAttack(t, d) { this.voice(t, 120, 80, 0.8, d, { vol: 0.55, gargle: 10, formants: [[600, 5, 1], [1200, 6, 0.6]], breath: 1200 }); },
+  preacherHurt(t, d) { this.voice(t, 130, 70, 0.6, d, { vol: 0.5, gargle: 14 }); },
+  preacherDie(t, d) { this.voice(t, 100, 38, 2.2, d, { vol: 0.55, gargle: 9, formants: [[420, 5, 1], [800, 6, 0.5]], breath: 700 }); SFX.splash.call(this, t + 1.2, d); },
+  // the weed: a wet rustle, the crack of a lash, a groan through it
+  vineNotice(t, d) { this.noise(t, 1.0, d, { bp: 1800, bp2: 700, q: 1.2, vol: 0.6, attack: 0.2 }); this.voice(t + 0.3, 75, 55, 1.6, d, { vol: 0.35, gargle: 7, formants: [[320, 5, 1], [640, 6, 0.5]], breath: 600 }); },
+  vineGrowl(t, d) { this.noise(t, 0.8, d, { bp: 1500, q: 1.5, vol: 0.25, attack: 0.3 }); },
+  vineAttack(t, d) { this.noise(t, 0.5, d, { bp: 900, bp2: 3200, q: 1.0, vol: 0.9, attack: 0.25 }); this.noise(t + 0.9, 0.08, d, { bp: 2400, q: 1.5, vol: 1.0, attack: 0.002 }); },
+  vineHurt(t, d) { this.noise(t, 0.25, d, { lp: 1200, vol: 0.7 }); this.tone(t, 160, 0.2, d, { f2: 90, vol: 0.4 }); },
+  vineDie(t, d) { this.voice(t, 80, 40, 2.4, d, { vol: 0.45, gargle: 6, formants: [[300, 5, 1], [600, 6, 0.5]], breath: 500 }); this.noise(t + 0.3, 2.2, d, { bp: 1200, bp2: 400, q: 1.2, vol: 0.6, attack: 0.4 }); },
   // a woman's scream, and her cry cut short as she goes under
   scream(t, d) { this.voice(t, 620, 880, 1.5, d, { vol: 0.55, formants: [[1000, 6, 1], [1600, 7, 0.7], [2900, 8, 0.35]], breath: 2600, vib: 0.05, vibRate: 6 }); },
   cry(t, d) { this.voice(t, 540, 300, 0.7, d, { vol: 0.5, formants: [[900, 6, 1], [1500, 7, 0.6]], breath: 2200, gargle: 20 }); },
