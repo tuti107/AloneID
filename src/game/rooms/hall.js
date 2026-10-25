@@ -1,7 +1,9 @@
 // 玄関ホール — the grand hall: staircase, the great clock, and a front door
 // that will not open.
+import * as THREE from 'three';
 import * as F from '../furniture.js';
 import { M, C } from '../mats.js';
+import { loft } from '../body.js';
 
 const H = 6.4, LAND = 3.6;
 
@@ -48,12 +50,12 @@ export default {
     r.entry('fromUpstairs', -5.4, -3.9, Math.PI / 2 + 0.3);
 
     // ---- doors
-    r.door(0, 5, Math.PI, {
+    const front = r.door(0, 5, Math.PI, {
       id: 'frontDoor', w: 1.9, h: 2.9, double: true, label: '玄関の扉', panel: 'woodBlack', panelInset: 'woodRed', wallMat: 'wallpaperRed', glass: true,
       onOpen: async (gg) => {
         if (gg.flags.horrorDead) { gg.task(() => gg.ending()); return false; }
-        gg.audio.sfx('locked');
-        await gg.say('玄関の扉は、びくともしない。\nまるで屋敷そのものが、私を逃すまいとしているかのようだ。');
+        // while the thing in the pool lives, the house does not let him go
+        await draggedOut(r, gg, front);
         return false;
       },
     });
@@ -96,7 +98,16 @@ export default {
     r.interact({
       id: 'clock', x: -6.15, z: 3.7, r: 0.5, label: '大時計',
       use: async (gg) => {
-        if (gg.flags.clockSolved) { await gg.say('大時計は再び動き出し、静かに時を刻んでいる。'); return; }
+        if (gg.flags.clockSolved) {
+          // the key behind the opened panel is the clock's own: take it here
+          if (r.cellarKey && !gg.flags['taken:cellarKey']) {
+            await gg.say('大時計の台座の板が開いている。\n奥に、何かが光っている……。');
+            await r.cellarKey.it.use(gg);
+            return;
+          }
+          await gg.say('大時計は再び動き出し、静かに時を刻んでいる。');
+          return;
+        }
         await gg.say('振り子の止まった大時計。針は七時四十分を指したまま動かない。\n文字盤の「III」の数字だけが、何度も指でなぞられたように擦り減っている。');
         if (gg.has('clockKey')) await clockPuzzle(r, gg);
         else await gg.say('文字盤の下に、ぜんまいを巻くための鍵穴がある。');
@@ -179,9 +190,13 @@ async function clockPuzzle(r, g) {
     const iv = setInterval(() => { clock.userData.panel.rotation.y = -1.6 * st.v; }, 16);
     await g.tween(st, 'v', 1, 0.8);
     clearInterval(iv);
-    g.unlock();
-    await g.say('三つ目の鐘が鳴り終わると同時に、ガチャリと歯車の噛み合う音がした。\n時計の台座の板が、ひとりでに開いている。');
     placeCellarKey(r, g);
+    // look into the opened base, and take what is hidden there
+    g.cut({ pos: [-5.4, 0.9, 3.0], look: [-6.55, 0.25, 3.7], fov: 44 });
+    await g.say('三つ目の鐘が鳴り終わると同時に、ガチャリと歯車の噛み合う音がした。\n時計の台座の板が、ひとりでに開いた。中に何かがある――');
+    g.cut(null);
+    g.unlock();
+    if (r.cellarKey) await r.cellarKey.it.use(g);
   } else {
     g.unlock();
     await g.say('鐘の音が、空っぽの広間に虚しく響いた。\n……何も起こらない。');
@@ -190,5 +205,133 @@ async function clockPuzzle(r, g) {
 
 function placeCellarKey(r, g) {
   if (g.flags['taken:cellarKey']) return;
-  r.pickup('cellarKey', -6.5, 0.15, 3.7, { label: '時計の台座', ry: 1.4, r: 0.4 });
+  r.cellarKey = r.pickup('cellarKey', -6.5, 0.15, 3.7, { label: '時計の台座', ry: 1.4, r: 0.4 });
+}
+
+// Leaving before the thing in the pool is dead: there is no night outside
+// any more, only a darkness with eyes in it, and it takes him.
+async function draggedOut(r, g, door) {
+  g.lock();
+  const p = g.player;
+  p.place(0, 4.2, 0);
+  p.setState('scripted');
+  p.anim.play('idle', { fade: 0.2 });
+  g.audio.music(null);
+  g.cut({ pos: [2.3, 2.1, 1.7], look: [0, 1.35, 5.0], fov: 50 });
+  await g.wait(0.4);
+  // he pulls the great doors open...
+  g.audio.sfx('doorHeavy', { at: { x: 0, y: 1, z: 5 } });
+  g.audio.sfx('wind');
+  const leaves = { get v() { return door.open; }, set v(x) { door.setOpen(x); } };
+  await g.tween(leaves, 'v', 0.85, 1.6);
+  await g.say('……扉の向こうに、夜の庭は無かった。\nただ、底無しの暗闇が口を開けている。');
+  // ...and the dark looks back
+  const dark = new THREE.Group();
+  dark.position.set(0, 0, 5.14);
+  r.dynamic.add(dark);
+  const eyeM = new THREE.MeshBasicMaterial({ color: 0xd8b830 });
+  const pupilM = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  const eyes = [];
+  for (const [x, y, s] of [[-0.35, 1.9, 0.11], [0.3, 2.15, 0.08], [0.05, 1.45, 0.14], [-0.62, 1.2, 0.06], [0.62, 1.55, 0.07], [-0.2, 2.55, 0.05], [0.5, 0.85, 0.05], [-0.55, 2.3, 0.04], [0.15, 2.7, 0.06]]) {
+    const e = new THREE.Group();
+    e.position.set(x, y, 0);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(s, 10, 8), eyeM);
+    ball.scale.z = 0.4;
+    e.add(ball);
+    const pupil = new THREE.Mesh(new THREE.BoxGeometry(s * 0.2, s * 1.5, 0.01), pupilM);
+    pupil.position.z = -s * 0.45;
+    e.add(pupil);
+    e.scale.set(1, 0.01, 1);
+    dark.add(e);
+    eyes.push(e);
+  }
+  g.audio.sfx('rumble');
+  g.shake(0.04, 1.4);
+  for (const e of eyes) {
+    g.tween(e.scale, 'y', 1, 0.25);
+    await g.wait(0.12);
+  }
+  await g.wait(0.5);
+  // black arms of it lash in through the doorway and coil round him
+  const tentM = new THREE.MeshPhongMaterial({ color: 0x030304, shininess: 60, specular: 0x262c34 });
+  const N = 12;
+  const arms = [[-0.55, 1.6, 1.05], [0.6, 1.1, 0.75], [-0.2, 0.5, 0.3], [0.35, 2.2, 1.35], [-0.7, 0.8, 0.55], [0.15, 1.85, 1.2]].map(([x, y, ty], i) => {
+    const base = new THREE.Group();
+    base.position.set(x, y, 5.12);
+    r.dynamic.add(base);
+    const segs = [];
+    let parent = base;
+    for (let k = 0; k < N; k++) {
+      const sg = new THREE.Group();
+      parent.add(sg);
+      const r0 = 0.15 * (1 - k / N) + 0.025, r1 = 0.15 * (1 - (k + 1) / N) + 0.025;
+      const m = new THREE.Mesh(loft([[-0.03, r0, r0], [0.2, r1, r1]], 7), tentM);
+      m.castShadow = true;
+      sg.add(m);
+      segs.push(sg);
+      parent = sg;
+    }
+    return { base, segs, ty, side: i % 2 ? 1 : -1, ph: i * 1.7 };
+  });
+  const grab = { ext: 0, coil: 0, drag: 0 };
+  const target = new THREE.Vector3(), dir = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const anim = (dt, t) => {
+    for (const a of arms) {
+      target.set(p.pos.x + a.side * 0.05, p.pos.y + a.ty, p.pos.z);
+      dir.subVectors(target, a.base.position);
+      const len = dir.length();
+      a.base.quaternion.setFromUnitVectors(up, dir.normalize());
+      const seg = (len / N) * (0.08 + 0.92 * grab.ext);
+      a.segs.forEach((sg, k) => {
+        sg.position.y = k === 0 ? 0 : seg;
+        // whipping as it comes, then the last third wraps round him
+        const wrap = k > N * 0.6 ? grab.coil * 0.55 : 0;
+        sg.rotation.x = Math.sin(t * 9 + a.ph + k * 0.7) * 0.12 * (1 - grab.coil) + wrap;
+        sg.rotation.z = Math.cos(t * 7 + a.ph + k * 0.5) * 0.1 + wrap * a.side * 0.6;
+      });
+    }
+  };
+  r.updaters.push(anim);
+  g.audio.sfx('roar');
+  g.audio.sfx('tentacle');
+  await g.tween(grab, 'ext', 1, 0.35);
+  g.audio.sfx('hurt');
+  g.flash(0.25, [0.5, 0.1, 0.1]);
+  g.shake(0.1, 0.6);
+  p.anim.play('hit', { restart: true, fade: 0.05 });
+  await g.tween(grab, 'coil', 1, 0.4);
+  // he fights it
+  for (let i = 0; i < 3; i++) {
+    g.shake(0.06, 0.25);
+    p.anim.play('hit', { restart: true, fade: 0.05 });
+    await g.wait(0.4);
+  }
+  // dragged out into the dark; the doors slam behind him
+  door.collider.enabled = false;
+  g.audio.sfx('whoosh');
+  g.audio.sfx('ghostScream');
+  const from = p.pos.z;
+  const pull = { k: 0 };
+  const drag = () => {
+    const e = pull.k * pull.k;
+    p.pos.z = from + e * 3.4;
+    p.pos.y = e * 0.25;
+    p.root.rotation.x = e * 0.9;
+  };
+  r.updaters.push(drag);
+  await g.tween(pull, 'k', 1, 1.0);
+  g.audio.sfx('doorSlam', { at: { x: 0, y: 1, z: 5 } });
+  g.shake(0.15, 0.4);
+  g.flash(0.3, [0, 0, 0]);
+  door.setOpen(0);
+  for (const f of [anim, drag]) r.updaters.splice(r.updaters.indexOf(f), 1);
+  r.dynamic.remove(dark);
+  for (const a of arms) r.dynamic.remove(a.base);
+  door.collider.enabled = true;
+  p.root.rotation.x = 0;
+  await g.wait(0.8);
+  g.deathText = '扉の向こうの闇に棲むものが、エドガーを連れ去った……';
+  g.unlock();
+  p.hp = 0;
+  p.die();
 }
