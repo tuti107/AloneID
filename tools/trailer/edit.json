@@ -10,7 +10,7 @@
     { "card": "c3_letter", "dur": 2.5 },
     { "card": "c4_fire", "dur": 2.5 },
     { "shot": "S07", "in": 0.6, "dur": 5.0, "lead": 0.5 },
-    { "shot": "S05", "in": 0.0, "dur": 4.55, "gain": 15 },
+    { "shot": "S05", "in": 0.0, "dur": 4.55, "gain": 9 },
     { "shot": "S04", "in": 0.4, "dur": 3.25 },
     { "shot": "S08", "in": 1.0, "dur": 3.2 },
     { "card": "c5_dont_look", "dur": 2.0, "silent": true },

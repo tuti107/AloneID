@@ -180,7 +180,7 @@ def master(wav):
     gain = LOUDNESS - i
     for _ in range(3):
         subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', wav,
-                        '-af', f'volume={gain:.2f}dB,alimiter=limit=0.79:attack=4:release=80:level=disabled',
+                        '-af', f'volume={gain:.2f}dB,alimiter=limit=0.7:attack=4:release=80:level=disabled',
                         '-c:a', 'aac', '-b:a', '192k', path], check=True)
         i2, p2 = loudness(path)
         if abs(i2 - LOUDNESS) < 0.3:
