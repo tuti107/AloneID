@@ -9,7 +9,7 @@ import { rng } from '../../engine/util.js';
 
 // The flood after the fire: seconds to get out, and how far the water has
 // come (0 to 1) by now.
-export const FLOOD_TIME = 60;
+export const FLOOD_TIME = 75;
 export function floodLevel(g) {
   if (!g.flags.flameDrowned) return 0;
   if (!g.escape) return 1;
@@ -60,6 +60,7 @@ export default {
     flood.position.set(-0.2, -0.3, -0.7);
     flood.receiveShadow = true;
     r.dynamic.add(flood);
+    r.flood = flood;
     r.updaters.push((dt, t) => {
       const k = floodLevel(g);
       flood.visible = k > 0;
@@ -218,8 +219,30 @@ export default {
 
   setup(r, g) {
     if (g.flags.horrorRisen && !g.flags.flameDrowned) g.audio.music('boss');
+    if (g.flags.flameDrowned && g.escape) escapeLights(r);
   },
 };
+
+// Running from the flood with no lamp: the risen tide glows, light spills
+// down the tunnel he came by, and the murk thins, so the way out shows.
+function escapeLights(r) {
+  if (r.escapeLit) return;
+  r.escapeLit = true;
+  if (r.scene.fog) r.scene.fog.density = 0.016;
+  if (r.hemiLight) {
+    r.hemiLight.color.set(0x3a7a6a);
+    r.hemiLight.groundColor.set(0x0a1612);
+    r.hemiBase = 3.0;
+  }
+  r.flood.material.emissive = new THREE.Color(0x0a2a22);
+  r.point(-7.0, 1.6, 1.0, { color: 0xffb070, intensity: 12, distance: 11, flicker: 0.12, speed: 3 });
+  r.point(-3.6, 1.6, 1.6, { color: 0x4ab090, intensity: 7, distance: 9 });
+  r.point(2.0, 1.8, 2.6, { color: 0x4ab090, intensity: 5, distance: 9 });
+  const glow = new THREE.Sprite(spriteMat('glow', 0xffa860, 0.6));
+  glow.scale.set(2.0, 2.0, 1);
+  glow.position.set(-7.4, 1.0, 1.0);
+  r.dynamic.add(glow);
+}
 
 function showStone(r) {
   const st = starStoneModel();
@@ -442,6 +465,12 @@ async function burn(r, g) {
   r.boil = 0.8;
   await g.wait(1.0);
   await g.say('淵の水があふれ出した！\nこのままでは、洞窟ごと潮に沈む――！');
+  // show him the way out before he runs for it
+  escapeLights(r);
+  g.cut({ pos: [-3.0, 2.1, 3.9], look: [-7.4, 0.8, 1.0], fov: 50 });
+  await g.wait(0.6);
+  await g.say('来た道を戻れ――\n西の隧道から地下室へ。北西の階段を上って、館の上へ！');
+  g.cut(null);
   g.escape = { t: FLOOD_TIME, total: FLOOD_TIME };
   g.audio.music('escape');
   g.unlock();

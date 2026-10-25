@@ -1,7 +1,7 @@
 // 地下室 — the wine cellar. Pitch dark without a lamp.
 import * as THREE from 'three';
 import * as F from '../furniture.js';
-import { M, C } from '../mats.js';
+import { M, C, spriteMat } from '../mats.js';
 import { floodLevel } from './cavern.js';
 
 export default {
@@ -85,6 +85,7 @@ export default {
     flood.rotation.x = -Math.PI / 2;
     flood.position.set(0.2, -0.2, 0);
     r.dynamic.add(flood);
+    r.flood = flood;
     r.updaters.push((dt, t) => {
       const k = floodLevel(g);
       flood.visible = k > 0.12;
@@ -104,13 +105,22 @@ export default {
 
   setup(r, g) {
     if (g.flags.flameDrowned) {
-      // the sea coming up the tunnel glows, a little: enough to run by
+      // the sea coming up the tunnel glows, and the hall's light falls down
+      // the stairs ahead: enough to see the way out by
       if (!r.tideLit) {
         r.tideLit = true;
         r.dark = false;
         r.point(4.6, 0.6, 0.2, { color: 0x3a9a70, intensity: 14, distance: 10, flicker: 0.25, speed: 1.5 });
-        r.point(-2.0, 2.0, 0.0, { color: 0x4a7a6a, intensity: 4, distance: 9 });
+        r.point(-0.5, 2.0, 0.6, { color: 0x4a8a7a, intensity: 7, distance: 10 });
+        r.point(-4.3, 2.2, -2.0, { color: 0xffb070, intensity: 10, distance: 8, flicker: 0.1, speed: 3 });
+        const glow = new THREE.Sprite(spriteMat('glow', 0xffa860, 0.55));
+        glow.scale.set(1.6, 1.6, 1);
+        glow.position.set(-4.3, 2.35, -2.75);
+        r.dynamic.add(glow);
+        r.flood.material.emissive = new THREE.Color(0x082620);
+        if (r.hemiLight) { r.hemiLight.color.set(0x4a6a78); r.hemiBase = 2.4; }
       }
+      if (g.escape) g.notify('北西の階段を上れ――急げ！', 3.5);
       return;
     }
     if (!g.flags.lampLit) {
