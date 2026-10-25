@@ -3,7 +3,7 @@ import * as F from '../furniture.js';
 import { M } from '../mats.js';
 
 // doors along the corridor: x, and the wall they are in (-1 north, +1 south)
-const DOORS = [[-3.5, -1], [0.5, 1], [3.0, -1]];
+const DOORS = [[-7.0, -1], [-3.5, -1], [0.5, 1], [3.0, -1]];
 
 export default {
   id: 'corridor',
@@ -17,7 +17,7 @@ export default {
     r.shell(-8, -1.3, 8, 1.3, {
       h: H, floor: 'woodFloorDark', ceil: 'plaster', mat: 'wallpaperGreen', wainscot: 'wainscot', wainscotH: 1.0, crown: true,
       openings: {
-        n: [{ at: -3.5, w: 1.0, h: 2.15 }, { at: 3.0, w: 1.0, h: 2.15 }],
+        n: [{ at: -7.0, w: 1.0, h: 2.15 }, { at: -3.5, w: 1.0, h: 2.15 }, { at: 3.0, w: 1.0, h: 2.15 }],
         s: [{ at: 0.5, w: 1.0, h: 2.15 }, { at: 5.6, w: 1.0, h: 1.6, sill: 0.8 }, { at: -5.6, w: 1.0, h: 1.6, sill: 0.8 }],
         e: [{ at: 0, w: 0.9, h: 2.05 }],
         w: [{ at: 0, w: 1.8, h: 2.6, pass: true }],
@@ -62,6 +62,26 @@ export default {
     const frame = '#a89878';
     r.door(8, 0, -Math.PI / 2, { w: 0.9, h: 2.05, to: 'attic', entry: 'fromCorridor', label: '屋根裏への扉', panel: 'wood', frame, spill: 0x8a6030, wallMat: 'wallpaperGreen' });
     r.entry('fromAttic', 7.4, 0, -Math.PI / 2);
+    // the nursery, boarded up since 1912; in the second act the boards are
+    // broken, from the inside
+    const act2 = g.act >= 2;
+    r.door(-7.0, -1.3, 0, {
+      id: 'nurseryDoor', to: 'nursery', entry: 'fromCorridor', label: '子供部屋の扉', frame, wallMat: 'wallpaperGreen', panel: 'woodLight', spill: act2 ? 0x5a6a98 : undefined,
+      locked: (gg) => gg.act < 2, lockedMsg: '扉に、板が何枚も打ち付けられている。真鍮の札に「子供部屋」。\n……板は、外側から打ち付けられている。',
+      onOpen: async (gg) => {
+        if (gg.hasRoom('nursery')) return true;
+        await gg.notYet();
+        return false;
+      },
+    });
+    r.entry('fromNursery', -7.0, -0.7, 0);
+    if (!act2) {
+      for (const [y, rz] of [[0.55, 0.12], [1.15, -0.08], [1.75, 0.05]]) r.box('woodLight', 1.2, 0.12, 0.03, -7.0, y, -1.205, { rz, cast: false });
+    } else {
+      r.box('woodLight', 1.2, 0.12, 0.03, -7.0, 1.75, -1.205, { rz: 0.05, cast: false });
+      r.box('woodLight', 0.7, 0.12, 0.03, -7.32, 0.9, -1.205, { rz: 1.1, cast: false });
+      r.box('woodLight', 0.5, 0.06, 0.12, -6.7, 0.002, -0.9, { ry: 0.6, cast: false });
+    }
     r.door(-3.5, -1.3, 0, { to: 'bathroom', entry: 'fromCorridor', label: '浴室の扉', frame, spill: 0x7088b0, wallMat: 'wallpaperGreen' });
     r.entry('fromBathroom', -3.5, -0.7, 0);
     r.door(3.0, -1.3, 0, {
@@ -83,13 +103,13 @@ export default {
       p.position.set(x, pTop - 0.4 + h / 2 - 0.2, -1.27);
       r.static.add(p);
     };
-    P(-6.0, 'portraitOld');
+    P(-5.75, 'portraitOld');
     P(-1.2, 'portraitCaptain', 0.7, 0.9);
     P(1.2, 'portraitMan');
     P(5.4, 'portraitWoman');
     r.interact({ id: 'pEzekiel', x: -1.2, z: -0.9, r: 0.5, label: '肖像画', use: (gg) => gg.say('船長服の男の肖像画。額には「エゼキエル・アシュコム　一七九五年」。\n絵の具の剥げた目が、じっとこちらを見下ろしている。') });
     r.interact({ id: 'pWoman', x: 5.4, z: -0.9, r: 0.5, label: '肖像画', use: (gg) => gg.say('優しげな婦人の肖像画。「エレノア・アシュコム」とある。') });
-    r.interact({ id: 'pOld', x: -6.0, z: -0.9, r: 0.5, label: '肖像画', use: (gg) => gg.say('厳めしい老人の肖像画。名札は削り取られている。') });
+    r.interact({ id: 'pOld', x: -5.75, z: -0.9, r: 0.5, label: '肖像画', use: (gg) => gg.say('厳めしい老人の肖像画。名札は削り取られている。') });
     r.interact({ id: 'pMan', x: 1.2, z: -0.9, r: 0.5, label: '肖像画', use: (gg) => gg.say('若き日のサイラスの肖像画だ。理知的な目をしている。') });
 
     const tbl = F.sideTable({ s: 0.55, h: 0.75 });

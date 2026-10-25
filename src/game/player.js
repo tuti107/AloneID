@@ -79,8 +79,15 @@ export class Player {
     gun.position.set(0, -0.02, 0.02);
     const gw = new THREE.Group();
     gw.add(gun);
+    const cut = ITEMS.cutlass.model();
+    cut.position.set(0, -0.06, 0.04);
+    cut.rotation.x = Math.PI - 0.5;
+    cut.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    const cw = new THREE.Group();
+    cw.add(cut);
     this.weaponObjs.poker = pw;
     this.weaponObjs.revolver = gw;
+    this.weaponObjs.cutlass = cw;
     for (const w of Object.values(this.weaponObjs)) {
       w.visible = false;
       parts.rGrip.add(w);
@@ -357,7 +364,7 @@ export class Player {
       return;
     }
     if (w.kind === 'melee') {
-      this.attackDef = { dmg: w.dmg, range: w.range, arc: 0.95, knock: 2.0, kind: 'blunt' };
+      this.attackDef = { dmg: w.dmg, range: w.range, arc: 0.95, knock: 2.0, kind: w.blade ? 'blade' : 'blunt' };
       this.setState('attack');
       this.anim.play(w.clip, { restart: true, fade: 0.08 });
       g.audio.sfx('whoosh', { at: this.pos, rate: 0.7, delay: 0.25 });

@@ -191,6 +191,29 @@ function keyring() {
   }
   return g;
 }
+// Ezekiel's cutlass, laid out like the poker: the point at the bottom, the
+// grip at the top, so the hand holds it the same way.
+function cutlass() {
+  const g = G();
+  const steel = C(0xa8acb0, { phong: true, shininess: 90, specular: 0xffffff });
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.68, 0.007), steel);
+  blade.position.set(0.012, 0.37, 0);
+  blade.rotation.z = 0.05;
+  g.add(blade);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.06, 4), steel);
+  tip.rotation.z = Math.PI;
+  tip.scale.z = 0.25;
+  tip.position.set(0.03, 0.01, 0);
+  g.add(tip);
+  const guard = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.008, 4, 10, Math.PI * 1.2), brass());
+  guard.position.set(0, 0.74, 0);
+  guard.rotation.z = Math.PI / 2;
+  g.add(guard);
+  F.bx(g, brass(), 0.07, 0.015, 0.03, 0, 0.71, 0);
+  F.bx(g, M('woodBlack'), 0.03, 0.13, 0.03, 0, 0.72, 0);
+  F.sp(g, brass(), 0.022, 0, 0.86, 0, 6, 4);
+  return g;
+}
 function recordDisc() {
   const g = G();
   const rec = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.006, 20), [M('woodBlack'), M('recordLabel', { ts: [1, 1] }), M('woodBlack')]);
@@ -259,6 +282,12 @@ export const ITEMS = {
     name: '嵐のランタン', key: true, actions: ['use', 'examine'],
     desc: (g) => (g.flags.lanternLit ? '塔の消えない火を宿した、船乗りの嵐のランタン。\n炎は、雨にも風にも揺らがない。潮の下僕は、この火を恐れる。' : '船乗りが使う、鉄枠の嵐のランタン。中は空っぽで、油も火もない。'),
     model: () => F.stormLantern(),
+  },
+  cryptKey: { name: '納骨堂の鍵', key: true, actions: ['use', 'examine'], desc: '黒ずんだ鉄の大きな鍵。持ち手に、錨と星の紋。\n子供の手には、重すぎる鍵だ。', model: keyModel(M('iron'), 1.5) },
+  testament: { name: 'ジョナの遺書', actions: ['read'], doc: 'testament', model: letter },
+  cutlass: {
+    name: 'エゼキエルのカトラス', actions: ['equip', 'examine'], weapon: { kind: 'melee', dmg: 28, range: 1.5, clip: 'swing', blade: true },
+    desc: '反りのある船乗りの刀。刃に、見慣れない星の紋が刻まれている。\n火かき棒より、ずっと深く斬り込める。', model: cutlass,
   },
   canvas: { name: 'ジョナの肖像のカンバス', key: true, actions: ['use', 'examine'], desc: '丸めた古いカンバス。広げると、厳めしい老人が描かれている。\n裏に「Ｊ・Ａ　一八三五年」とある。', model: rolledCanvas },
   brassKey: { name: '真鍮の小さな鍵', key: true, actions: ['use', 'examine'], desc: '小さな真鍮の鍵。机の引き出しのものだろうか。', model: keyModel(brass, 0.8) },

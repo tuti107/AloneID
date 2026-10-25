@@ -1158,6 +1158,59 @@ function silhouette() {
   return c;
 }
 
+// Thomas's drawings, in crayon on cheap paper.
+function childDrawing(kind) {
+  const [c, g] = mk(64, 48);
+  const rand = rng(kind === 'woman' ? 201 : 202);
+  g.fillStyle = '#d8cfb4';
+  g.fillRect(0, 0, 64, 48);
+  for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(120,100,70,${0.05 + rand() * 0.08})`; g.fillRect(rand() * 64, rand() * 48, 2, 1); }
+  const crayon = (col, w, pts) => {
+    g.strokeStyle = col;
+    g.lineWidth = w;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(pts[0][0] + rand() - 0.5, pts[0][1] + rand() - 0.5);
+    for (const q of pts.slice(1)) g.lineTo(q[0] + rand() - 0.5, q[1] + rand() - 0.5);
+    g.stroke();
+  };
+  if (kind === 'woman') {
+    // waves across the top, and a woman under them looking up
+    for (let row = 0; row < 3; row++) {
+      const y = 8 + row * 6;
+      const pts = [];
+      for (let x = 2; x <= 62; x += 4) pts.push([x, y + (x % 8 ? 2 : -1)]);
+      crayon(row ? '#2a4a8a' : '#4a6aaa', 1.4, pts);
+    }
+    g.fillStyle = '#1a3a6a';
+    g.fillRect(0, 26, 64, 22);
+    for (let i = 0; i < 14; i++) crayon('#101014', 1.3, [[32 + (i - 7) * 1.3, 27], [32 + (i - 7) * 2.6, 47]]);
+    g.fillStyle = '#c8c4b8';
+    g.beginPath(); g.ellipse(32, 34, 5, 6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ffffff';
+    g.fillRect(29, 32, 2, 2); g.fillRect(33, 32, 2, 2);
+    crayon('#5a1010', 1, [[30, 38], [34, 38]]);
+  } else {
+    // a black tower with a yellow light; black hands reaching out of the sea
+    g.fillStyle = '#2a2a30';
+    g.fillRect(10, 10, 9, 28);
+    g.fillRect(9, 8, 11, 3);
+    crayon('#e0b830', 2, [[14.5, 7], [14.5, 3]]);
+    for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.35; crayon('#e8c840', 1, [[14.5, 6], [14.5 + Math.cos(a) * 12, 6 + Math.sin(a) * 12]]); }
+    g.fillStyle = '#e8c840';
+    g.beginPath(); g.arc(14.5, 6, 2.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#1a2a5a';
+    g.fillRect(0, 36, 64, 12);
+    for (let i = 0; i < 6; i++) {
+      const x = 26 + i * 6;
+      crayon('#08080a', 1.3, [[x, 47], [x + 1, 38]]);
+      for (let k = -1; k <= 1; k++) crayon('#08080a', 0.8, [[x + 1, 38], [x + 1 + k * 2, 35]]);
+    }
+  }
+  c.opts = { repeat: false };
+  return c;
+}
+
 // Something with too-long limbs, flat against a wall, climbing.
 function climber() {
   const [c, g] = mk(48, 64);
@@ -1217,6 +1270,11 @@ const BUILDERS = {
   stainedGlass: () => stainedGlass(),
   silhouette: () => silhouette(),
   climber: () => climber(),
+  drawWoman: () => childDrawing('woman'),
+  drawTower: () => childDrawing('tower'),
+  faceThomas: () => face({ skin: '#d4dce4', iris: '#3a5068', brows: '#5a4a3a', lips: '#a8949a' }),
+  faceAncestor: () => face({ skin: '#8a8070', eye: '#d8d0b8', lips: '#4a3a34', mouth: '#120806', brows: '#c8c4b8', kind: 'dead' }),
+  faceAncestorGlow: () => face({ eye: '#e8e0c0', kind: 'dead', glow: true }),
   faceArmor: () => helmFace(false),
   faceArmorGlow: () => helmFace(true),
   woodFloor: () => woodPlanks({ seed: 11, base: 0x6b4426, dark: 0x2a170b }),
@@ -1282,6 +1340,7 @@ const BUILDERS = {
   leather: () => plain({ seed: 146, base: 0x5a2a16, dark: 0x200c06, amount: 14 }),
   soot: () => plain({ seed: 147, base: 0x2a2420, dark: 0x050404, amount: 20 }),
   dirt: () => plain({ seed: 148, base: 0x3a3024, dark: 0x120e0a, amount: 24, size: 128, scale: 8 }),
+  graveGround: () => plain({ seed: 149, base: 0x5a5e44, dark: 0x262818, amount: 34, size: 128, scale: 6 }),
   crate: () => crate({ seed: 151 }),
   wineRack: () => wineRack({ seed: 152 }),
   paper: () => paper({ seed: 161 }),

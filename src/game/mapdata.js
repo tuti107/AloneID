@@ -10,6 +10,8 @@ export const FLOORS = [
   { id: '2f', name: '2階' },
   { id: '1f', name: '1階' },
   { id: 'b1', name: '地下' },
+  // out past the conservatory: beside the house, not above or below it
+  { id: 'grave', name: '墓地', aside: true },
 ];
 
 export const MAP_ROOMS = {
@@ -32,6 +34,9 @@ export const MAP_ROOMS = {
   // the tower stands apart: its stair has a page of its own
   tower: { floor: 'tower', rect: [-3, -3, 3, 3], box: [-3, -3, 3, 3] },
   lamproom: { floor: 'roof', rect: [-3, -3, 3, 3], box: [10, -3, 16, 3] },
+  nursery: { floor: '2f', rect: [-3, -2.5, 3, 2.5], box: [-12.7, -6.3, -6.7, -1.3] },
+  graveyard: { floor: 'grave', rect: [-8.4, -7.4, 8.4, 7.4], box: [-40.0, 4.3, -23.2, 19.1] },
+  crypt: { floor: 'grave', rect: [-4, -6.5, 4, 6.5], box: [-39.6, -10.0, -31.6, 3.0] },
 };
 
 // door: the door's id where it can be locked (drawn red once found locked,
@@ -56,6 +61,9 @@ export const MAP_LINKS = [
   { a: 'boiler', ap: [4.5, 1.6], b: 'tower', bp: [-3, 1.2], door: 'towerDoor', open: (f) => !!f.steamUp },
   { a: 'tower', ap: [-2.45, -3], b: 'lamproom', bp: [-1.8, 3], door: 'lampDoor' },
   { a: 'tower', ap: [-3, -1.5], b: 'bedroom', bp: [-3.5, 0.55], when: (f) => !!f.towerPassage },
+  { a: 'corridor', ap: [-7.0, -1.3], b: 'nursery', bp: [0.6, 2.5], door: 'nurseryDoor', open: (f) => (f.act || 1) >= 2 },
+  { a: 'conservatory', ap: [-5, 1.5], b: 'graveyard', bp: [7.8, 1.5], door: 'gardenDoor' },
+  { a: 'graveyard', ap: [-4, -4.2], b: 'crypt', bp: [0, 6.5], door: 'cryptDoor' },
 ];
 
 // Marks drawn on a room's wall that lead nowhere you can go.

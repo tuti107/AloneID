@@ -16,6 +16,7 @@ const TYPES = {
   ghoul: { build: CH.buildGhoul, hp: 32, dmg: 10, speed: 2.3, turn: 6, range: 1.0, sight: 12, cd: 0.6, radius: 0.3, voice: 'ghoul', stagger: 0 },
   // the drowned crew: slow, hard to put down, heavy-handed
   thrall: { build: (o) => CH.buildThrall({ seed: o.seed || 1 }), hp: 64, dmg: 15, speed: 0.62, turn: 2.2, range: 1.1, sight: 10, cd: 1.0, radius: 0.33, voice: 'thrall', stagger: 14 },
+  ancestor: { build: (o) => CH.buildAncestor({ seed: o.seed || 1 }), hp: 55, dmg: 14, speed: 0.55, turn: 2.0, range: 1.05, sight: 9, cd: 1.2, radius: 0.3, voice: 'zombie', stagger: 12 },
   stoker: { build: CH.buildStoker, hp: 120, dmg: 22, speed: 0.78, turn: 2.0, range: 1.35, sight: 10, cd: 1.2, radius: 0.42, voice: 'cook', stagger: 16 },
 };
 
@@ -764,6 +765,47 @@ export class Vine extends Monster {
 export class Thrall extends Monster {
   constructor(game, room, o) {
     super(game, room, { ...o, type: 'thrall' });
+  }
+  // Under the earth of a grave, until someone walks over it.
+  bury() {
+    this.state = 'buried';
+    this.hidden = true;
+    this.root.visible = false;
+    this.solid = false;
+  }
+  emerge() {
+    if (this.state !== 'buried') return;
+    this.hidden = false;
+    this.root.visible = true;
+    this.solid = true;
+    this.setState('emerging');
+    this.pos.y = -1.7;
+    this.sync();
+    this.game.audio.sfx('thrallNotice', { at: this.pos });
+    this.game.burst('dust', this.pos.x, 0.15, this.pos.z, { n: 16, color: 0x3a3226, size: 0.3, speed: 1.2, up: 1.4, gravity: 4 });
+  }
+  get hunting() { return super.hunting || this.state === 'emerging'; }
+  update(dt) {
+    if (this.state === 'buried') return;
+    if (this.state === 'emerging') {
+      this.stateT += dt;
+      const k = Math.min(1, this.stateT / 1.5);
+      this.pos.y = -1.7 * (1 - k) * (1 - k);
+      this.rot = approachAngle(this.rot, Math.atan2(this.player.pos.x - this.pos.x, this.player.pos.z - this.pos.z), 2 * dt);
+      this.anim.play('walk', { fade: 0.2 });
+      this.anim.update(dt);
+      this.sync();
+      if (k >= 1) this.setState('chase');
+      return;
+    }
+    super.update(dt);
+  }
+  serialize() {
+    return { ...super.serialize(), buried: this.state === 'buried' };
+  }
+  restore(d) {
+    super.restore(d);
+    if (d.buried && !d.dead) this.bury();
   }
   special(dt, dist, toP) {
     const p = this.player;

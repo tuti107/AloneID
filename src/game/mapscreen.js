@@ -154,7 +154,8 @@ export class MapModal extends Modal {
           const other = !onFloor(b);
           const level = (id) => FLOORS.findIndex((f) => f.id === id);
           const up = other && level(MAP_ROOMS[b].floor) < level(floor.id);
-          const text = other ? `${up ? '▲' : '▼'}${floorName(b)}` : '？';
+          const aside = other && (FLOORS[level(MAP_ROOMS[b].floor)].aside || floor.aside);
+          const text = other ? `${aside ? '▶' : up ? '▲' : '▼'}${floorName(b)}` : '？';
           labels.push({ x: E[0] + da[0] * 2 * px, y: E[1] + da[1] * 2 * px, d: da, text, color: other ? GOLD : DIM });
         }
       }

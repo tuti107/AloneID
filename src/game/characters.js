@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { frustum } from '../engine/geom.js';
 import { C, spriteMat } from './mats.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, armorClips, preacherClips, setJ, ROOT } from './rig.js';
+import { Animator, buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, armorClips, preacherClips, setJ, ROOT } from './rig.js';
 import { loft, shell, ringAt, surfacePoint, headGeo } from './body.js';
 import { tex } from '../engine/textures.js';
 import { rng } from '../engine/util.js';
@@ -150,6 +150,91 @@ export function buildClara() {
     },
   });
   return { parts, clips: humanClips() };
+}
+
+// ------------------------------------------------------------------ Thomas
+// Clara's little brother, drowned in 1912: a pale boy in a sailor suit, and
+// not all there. setFade(0..1) brings him and takes him away again.
+export function buildThomas() {
+  const mats = [];
+  const G = (c, glow = 0.3) => {
+    const m = new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(glow), transparent: true, opacity: 0.85 });
+    mats.push(m);
+    return m;
+  };
+  const skin = G(0xd2dce4, 0.4), suit = G(0xdfe6f0, 0.35), navy = G(0x2a3a64, 0.2), hair = G(0x4a3a2c, 0.15), shoes = G(0x16161c, 0.1);
+  const parts = buildHumanoid({
+    hipY: 0.56, thigh: 0.26, shin: 0.25, torsoLen: 0.33, neckLen: 0.05,
+    chest: [0.25, 0.16], waist: [0.22, 0.15], pelvis: [0.21, 0.1, 0.14], head: [0.15, 0.172, 0.16],
+    shoulderX: 0.12, armW: 0.055, legW: 0.075, upperArm: 0.18, foreArm: 0.16, handW: 0.05, hipX: 0.06, neckR: 0.03,
+    colors: { torso: suit, arms: suit, legs: navy, shins: suit, pelvis: navy, skin, shoes, hair },
+    face: 'faceThomas',
+    hair: { front: 0.62, side: -0.12, back: -0.5, thick: 0.01 },
+    extras(p, spec) {
+      const j = p.joints, T = p.surf.torso, L = spec.torsoLen;
+      // a sailor's collar and its knotted scarf
+      band(j.spine, navy, T, L - 0.06, L - 0.015, 0.008);
+      box(j.spine, navy, 0.05, 0.07, 0.02, 0, L - 0.11, 0.08, -0.2);
+      for (const side of ['l', 'r']) band(j[side + 'Elbow'], navy, p.surf.foreArm, -spec.foreArm * 0.78, -spec.foreArm * 0.9, 0.006, 8);
+    },
+  });
+  if (parts.faceMat) {
+    parts.faceMat.transparent = true;
+    parts.faceMat.emissive = new THREE.Color(0x404850);
+    parts.faceMat.emissiveMap = parts.faceMat.map;
+    mats.push(parts.faceMat);
+  }
+  parts.root.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  const halo = new THREE.Sprite(spriteMat('glow', 0x9ab8d8, 0.0));
+  halo.scale.set(1.6, 1.9, 1);
+  halo.position.y = 0.7;
+  parts.root.add(halo);
+  const light = new THREE.PointLight(0xa8c0e0, 0, 4, 2);
+  light.position.set(0, 1.0, 0.3);
+  parts.root.add(light);
+  const anim = new Animator(parts, humanClips());
+  anim.play('idle', { fade: 0 });
+  return {
+    root: parts.root,
+    parts,
+    setFade(v) {
+      for (const m of mats) { m.opacity = 0.85 * v; m.depthWrite = v > 0.7; }
+      halo.material.opacity = 0.3 * v;
+      light.intensity = 2.5 * v;
+      parts.root.visible = v > 0.01;
+    },
+    giveKey() { anim.play('reach', { restart: true, fade: 0.2 }); },
+    update(dt) { anim.update(dt); if (anim.cur === 'reach' && anim.finished) anim.play('idle', { fade: 0.4 }); },
+  };
+}
+
+// ------------------------------------------------------------------ ancestors
+// The family's dead, out of their niches in the crypt: dried to the bone in
+// old-fashioned black, dust and cobweb on their shoulders.
+export function buildAncestor({ seed = 1 } = {}) {
+  const R = rng(seed * 13 + 5);
+  const skin = [0x8a8070, 0x7e7666, 0x928a78][seed % 3];
+  const coat = R() < 0.5 ? 0x1e1c1a : 0x2a2622;
+  const parts = buildHumanoid({
+    chest: [0.34, 0.2], waist: [0.27, 0.17], pelvis: [0.29, 0.13, 0.19], head: [0.17, 0.215, 0.195],
+    armW: 0.07, legW: 0.1, handW: 0.072, shoulderX: 0.17, neckR: 0.034,
+    headShape: { jaw: 0.85, nose: 0.6 },
+    colors: { torso: coat, arms: coat, legs: coat, pelvis: coat, skin, shoes: 0x0e0c0a, hair: R() < 0.5 ? 0xb8b4a8 : 0x3a3430 },
+    face: 'faceAncestor', faceGlow: 'faceAncestorGlow',
+    hair: { front: 0.3, side: -0.2, back: -0.5, thick: 0.006 },
+    extras(p, spec) {
+      const j = p.joints, T = p.surf.torso, L = spec.torsoLen;
+      // a high white collar gone yellow, and the coat's tails
+      band(j.spine, S(0xb8b098), T, L - 0.04, L - 0.005, 0.006);
+      for (const side of ['l', 'r']) legSkirt(p, side, S(coat, true), [[0.1, 0.11, 0.12], [-0.12, 0.12, 0.13, -0.004], [-0.4, 0.13, 0.14, -0.01]]);
+      // dust and cobweb on the shoulders
+      for (let i = 0; i < 4; i++) {
+        const b = surfacePoint(T, L - 0.03, (i % 2 ? 1 : -1) * (0.6 + R() * 0.8), 0.008);
+        box(j.spine, C(0x9a968a, { transparent: true, opacity: 0.6 }), 0.08 + R() * 0.05, 0.004, 0.06, b.x, b.y, b.z, 0, R() * 3, 0);
+      }
+    },
+  });
+  return { parts, clips: zombieClips({ hunch: 0.3 }) };
 }
 
 // ------------------------------------------------------------------ armour

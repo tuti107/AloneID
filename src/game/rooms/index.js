@@ -16,5 +16,8 @@ import servants from './servants.js';
 import boiler from './boiler.js';
 import tower from './tower.js';
 import lamproom from './lamproom.js';
+import nursery from './nursery.js';
+import graveyard from './graveyard.js';
+import crypt from './crypt.js';
 
-export const ROOMS = { attic, corridor, library, bathroom, bedroom, hall, dining, music, kitchen, cellar, cavern, gallery, chapel, conservatory, servants, boiler, tower, lamproom };
+export const ROOMS = { attic, corridor, library, bathroom, bedroom, hall, dining, music, kitchen, cellar, cavern, gallery, chapel, conservatory, servants, boiler, tower, lamproom, nursery, graveyard, crypt };

@@ -321,6 +321,11 @@ export class Audio {
         for (let i = 0; i < 3; i++) this.noise(t + i * 0.018, 0.04, d, { bp: rand(1500, 3500), q: 2, vol: 0.7 });
         this.noise(t, 0.12, d, { lp: 600, vol: 1.0 });
         break;
+      case 'mud':
+        this.noise(t, 0.17, d, { lp: 700 * k, lp2: 220, vol: 1.25, attack: 0.01 });
+        this.tone(t, 60, 0.1, d, { vol: 0.5 });
+        if (Math.random() < 0.35) this.noise(t + 0.06, 0.08, d, { bp: 1800, q: 3, vol: 0.2 });
+        break;
       default: // wood
         this.noise(t, 0.08, d, { bp: 1100 * k, q: 2.5, vol: 1.2 });
         this.tone(t, 110 * k, 0.09, d, { f2: 70, vol: 0.8 });
@@ -525,6 +530,18 @@ export class Audio {
         drone(82.4, 0.012, 'triangle', 420); drone(123.5, 0.006, 'triangle', 500);
         amb.events.push({ every: [0.1, 0.5], fn: (tt, dd) => this.noise(tt, 0.02, dd, { bp: rand(1500, 4000), q: 2, vol: rand(0.03, 0.1) }) });
         break;
+      case 'nursery':
+        // the rain, and now and then a note from the music box nobody wound
+        rainIn(0.16); wind(0.05);
+        amb.events.push({ every: [7, 15], fn: (tt, dd) => { const m = [76, 81, 84, 83][Math.floor(rand(0, 4))]; this.tone(tt, 440 * Math.pow(2, (m - 69) / 12), 1.2, dd, { vol: 0.05, attack: 0.002 }); } });
+        amb.events.push({ every: [5, 11], fn: (tt, dd) => SFX.creak.call(this, tt, dd, rand(0.8, 1.2), { vol: 0.4 }) });
+        break;
+      case 'crypt':
+        drone(36.7, 0.018, 'sawtooth', 90); bed(this.brownBuf, { filters: [['lowpass', 200]], vol: 0.3, swell: 0.05 });
+        amb.events.push({ every: [1.5, 4], fn: (tt, dd) => SFX.drip.call(this, tt, dd, rand(0.7, 1.0), {}) });
+        amb.events.push({ every: [9, 18], fn: (tt, dd) => this.noise(tt, 1.2, dd, { bp: 380, q: 2, vol: 0.12, attack: 0.3 }) });
+        amb.events.push({ every: [14, 28], fn: (tt, dd) => this.voice(tt, 70, 58, 2.4, dd, { vol: 0.035, gargle: 6, formants: [[340, 5, 1], [680, 6, 0.5]] }) });
+        break;
       case 'dawn':
         wind(0.06); bed(this.brownBuf, { filters: [['lowpass', 400]], vol: 0.2 });
         amb.events.push({ every: [0.05, 0.3], fn: (tt, dd) => this.noise(tt, 0.02, dd, { bp: rand(1500, 4000), q: 2, vol: rand(0.05, 0.15) }) });
@@ -703,6 +720,25 @@ const SFX = {
   fireBurst(t, d) { this.noise(t, 1.6, d, { lp: 300, lp2: 3000, vol: 1.2, attack: 0.05 }); for (let i = 0; i < 25; i++) this.noise(t + rand(0.2, 2.5), 0.02, d, { bp: rand(1500, 4000), q: 2, vol: rand(0.2, 0.5) }); },
   hiss(t, d) { this.noise(t, 2.6, d, { bp: 5200, bp2: 2200, q: 0.6, vol: 1.3, attack: 0.02 }); this.noise(t, 1.4, d, { lp: 900, lp2: 200, vol: 0.7, attack: 0.01 }); },
   surge(t, d) { this.noise(t, 3.2, d, { buf: this.brownBuf, lp: 260, lp2: 1400, vol: 2.2, attack: 0.9 }); this.noise(t + 0.4, 2.4, d, { lp: 900, lp2: 3000, vol: 0.7, attack: 0.8 }); SFX.splash.call(this, t + 1.3, d); SFX.splash.call(this, t + 1.45, d); },
+  // Thomas's music box: a lullaby that winds down as it plays.
+  musicBox(t, d) {
+    const notes = [[76, 1], [81, 1], [84, 1], [83, 1], [81, 1], [76, 2], [77, 1], [81, 1], [86, 1], [84, 1], [83, 1], [81, 2], [80, 1], [83, 1], [88, 1], [86, 1], [84, 1], [83, 1], [81, 3]];
+    let tt = t, slow = 1;
+    for (const [m, len] of notes) {
+      const f = 440 * Math.pow(2, (m - 69) / 12);
+      this.tone(tt, f, 1.3, d, { vol: 0.16, attack: 0.002 });
+      this.tone(tt, f * 2.76, 0.32, d, { vol: 0.035, attack: 0.002 });
+      this.tone(tt, f * 0.5, 0.8, d, { vol: 0.03, type: 'triangle' });
+      tt += 0.36 * len * slow;
+      slow *= 1.03;
+    }
+  },
+  // a small boy laughing, somewhere in the room
+  giggle(t, d) {
+    const f = rand(480, 560);
+    for (let i = 0; i < 5; i++) this.voice(t + i * 0.12, f * (1 - i * 0.04), f * (0.92 - i * 0.04), 0.09, d, { vol: 0.1 * (1 - i * 0.12), vib: 0.02, formants: [[1100, 6, 1], [2700, 8, 0.45]], breath: 3200 });
+    for (let i = 0; i < 3; i++) this.voice(t + 0.8 + i * 0.13, f * 0.9, f * 0.8, 0.08, d, { vol: 0.035, vib: 0.02, formants: [[1100, 6, 1], [2700, 8, 0.45]] });
+  },
   clank(t, d) { for (const [f, v, dur] of [[318, 0.45, 0.6], [851, 0.28, 0.4], [1693, 0.16, 0.28], [2462, 0.09, 0.2]]) this.tone(t, f, dur, d, { type: 'triangle', vol: v }); this.noise(t, 0.05, d, { bp: 2800, q: 1.4, vol: 0.55 }); },
   pipeGroan(t, d) { this.tone(t, rand(46, 60), rand(1.6, 2.4), d, { type: 'sawtooth', f2: rand(68, 88), bp: rand(320, 520), q: 6, vol: 0.6, vib: 4, vibRate: rand(3, 6), attack: 0.35 }); SFX.creak.call(this, t + 0.5, d, 0.45, { vol: 0.7 }); },
   valve(t, d) { SFX.creak.call(this, t, d, 1.7, { vol: 0.55 }); SFX.creak.call(this, t + 0.35, d, 1.5, { vol: 0.45 }); SFX.clank.call(this, t + 0.7, d); },
