@@ -92,7 +92,8 @@ def mix_audio():
             place(src, 0.2, 0.2 + b['dur'] + 1.0, b['start'], 0.8, 1.0, gain, stop)
             continue
         lead = min(b.get('lead', 0.0), b['in'])
-        tail = 0.02 if quiet_next else 0.35
+        # cut sharply into another shot; let the room die away under a title card
+        tail = 0.02 if quiet_next else 1.0 if nxt is not None and nxt.get('card') else 0.35
         place(src, b['in'] - lead, b['in'] + b['dur'] + tail, b['start'] - lead,
               lead if lead else 0.015, tail, gain, stop)
 
@@ -172,27 +173,41 @@ def frame(k):
     return img
 
 
+def master(wav):
+    """Bring the mix to LOUDNESS under a peak limiter; AAC in out/audio.m4a."""
+    path = os.path.join(OUT, 'audio.m4a')
+    i, _ = loudness(wav)
+    gain = LOUDNESS - i
+    for _ in range(3):
+        subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', wav,
+                        '-af', f'volume={gain:.2f}dB,alimiter=limit=0.79:attack=4:release=80:level=disabled',
+                        '-c:a', 'aac', '-b:a', '192k', path], check=True)
+        i2, p2 = loudness(path)
+        if abs(i2 - LOUDNESS) < 0.3:
+            break
+        gain += LOUDNESS - i2
+    return path, i2, p2
+
+
 def main():
     wav = mix_audio()
-    i, p = loudness(wav)
-    gain = LOUDNESS - i
-    print(f'mix: {TOTAL:.1f} s, {i:.1f} LUFS, peak {p:.1f} dBFS; gain {gain:+.1f} dB')
+    audio, lufs, peak = master(wav)
+    print(f'sound: {TOTAL:.1f} s, {lufs:.1f} LUFS, true peak {peak:.1f} dBTP')
     nf = round(TOTAL * FPS)
-    out = os.path.join(OUT, 'trailer.mp4')
+    video = os.path.join(OUT, 'picture.mp4')
     enc = subprocess.Popen([
         'ffmpeg', '-v', 'error', '-y',
         '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
-        '-i', wav,
-        '-af', f'volume={gain:.2f}dB,alimiter=limit=0.84:attack=4:release=80:level=disabled',
-        '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p',
-        '-c:a', 'aac', '-b:a', '192k', '-ar', str(SR), '-movflags', '+faststart', '-shortest', out,
+        '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-pix_fmt', 'yuv420p', video,
     ], stdin=subprocess.PIPE)
     for k in range(nf):
         enc.stdin.write(np.clip(frame(k), 0, 255).astype(np.uint8).tobytes())
     enc.stdin.close()
     enc.wait()
-    i2, p2 = loudness(out)
-    print(f'{out}: {nf} frames, {os.path.getsize(out) / 1e6:.1f} MB, {i2:.1f} LUFS, peak {p2:.1f} dBFS')
+    out = os.path.join(OUT, 'trailer.mp4')
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', video, '-i', audio, '-map', '0:v', '-map', '1:a',
+                    '-c', 'copy', '-shortest', '-movflags', '+faststart', out], check=True)
+    print(f'{out}: {nf} frames, {os.path.getsize(out) / 1e6:.1f} MB')
 
 
 if __name__ == '__main__':
