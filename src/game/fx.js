@@ -22,6 +22,8 @@ const PRESETS = {
   splash: { color: 0x506860, n: 14, speed: 1.8, up: 2.6, life: 0.7, size: 0.07, gravity: 9, additive: false },
   ember: { color: 0xff7a2a, n: 16, speed: 1.4, up: 2.5, life: 1.4, size: 0.06, gravity: -1.0, additive: true },
   ghost: { color: 0x8090ff, n: 14, speed: 0.8, up: 0.8, life: 1.2, size: 0.12, gravity: -0.6, additive: true },
+  steam: { color: 0x2e3634, n: 22, speed: 1.1, up: 1.6, life: 2.2, size: 1.0, gravity: -0.7, additive: true },
+  foam: { color: 0x9ab4ac, n: 6, speed: 1.2, up: 1.4, life: 0.6, size: 0.12, gravity: 9, additive: false },
 };
 
 export function burst(room, x, y, z, kind = 'blood', o = {}) {

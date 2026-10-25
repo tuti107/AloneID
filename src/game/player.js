@@ -193,6 +193,9 @@ export class Player {
       if (move > 0) speed = (run ? RUN : WALK) * Math.min(1, move);
       else if (move < 0) speed = -BACK;
       if (this.pushing) speed = Math.min(speed, PUSH);
+      // deep water drags at his legs
+      const room = this.game.room;
+      if (speed && room && room.wade) speed *= room.wade(this.pos.x, this.pos.z);
       if (speed > 0) this.setState(this.pushing ? 'push' : 'move');
       else if (speed < 0 || turn) this.setState('move');
       else this.setState('idle');

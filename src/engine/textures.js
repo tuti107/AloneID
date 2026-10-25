@@ -1036,7 +1036,32 @@ function face({ skin, eye = '#e6dece', iris = '#3a2616', brows = '#2a1a10', lips
   return c;
 }
 
+// The armour's helm: a visor slit and breathing holes in iron; the glow map
+// is what burns behind the slit once it wakes.
+function helmFace(glow) {
+  const [c, g] = mk(32, 32);
+  const px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+  if (glow) {
+    px(0, 0, 32, 32, '#000');
+    px(9, 10, 3, 2, '#ff3018'); px(20, 10, 3, 2, '#ff3018');
+    px(10, 10, 1, 1, '#ffd0a0'); px(21, 10, 1, 1, '#ffd0a0');
+    c.opts = { repeat: false };
+    return c;
+  }
+  px(0, 0, 32, 32, '#6c6c72');
+  px(0, 0, 32, 3, '#7a7a80');
+  px(15, 0, 2, 32, '#56565c');
+  px(4, 8, 24, 6, '#4a4a50');
+  px(5, 10, 22, 2, '#050505');
+  for (let y = 18; y <= 24; y += 3) for (let x = 9; x <= 22; x += 3) px(x, y, 1, 1, '#141414');
+  px(4, 28, 24, 4, '#56565c');
+  c.opts = { repeat: false };
+  return c;
+}
+
 const BUILDERS = {
+  faceArmor: () => helmFace(false),
+  faceArmorGlow: () => helmFace(true),
   woodFloor: () => woodPlanks({ seed: 11, base: 0x6b4426, dark: 0x2a170b }),
   woodFloorDark: () => woodPlanks({ seed: 12, base: 0x4a2e1a, dark: 0x1a0e06, worn: 0.2 }),
   atticFloor: () => woodPlanks({ seed: 13, base: 0x7a6650, dark: 0x352a1e, plank: 21, worn: 0.5 }),
@@ -1109,6 +1134,7 @@ const BUILDERS = {
   mirrorFog: () => mirrorFog(),
   mirrorAge: () => mirrorAge(),
   facePlayer: () => face({ skin: '#c89a78', mustache: '#3a2414', brows: '#2a1a10', lips: '#9a5e50' }),
+  faceClara: () => face({ skin: '#e4c4ae', brows: '#3a2214', iris: '#2e4a5a', lips: '#a8404c', female: true }),
   faceZombie: () => face({ skin: '#7a8a6a', eye: '#c8c090', lips: '#4a3a3a', mouth: '#1a0606', brows: '#3a3a30', kind: 'dead' }),
   faceZombieGlow: () => face({ eye: '#d8d090', kind: 'dead', glow: true }),
   faceMaid: () => face({ skin: '#7e8c72', eye: '#c8c090', lips: '#4a2a30', mouth: '#1a0606', brows: '#2a1a12', kind: 'dead', female: true }),

@@ -634,6 +634,27 @@ export function humanClips() {
         p[ROOT + 2] = -0.35 * b;
       },
     },
+    // up off his back (the end of 'death'), slowly, the way you get up after
+    // being knocked senseless
+    getUp: {
+      dur: 2.2,
+      fn(t, p) {
+        const k = 1 - seg(t, 0, 2.2);
+        setJ(p, 'hips', -1.45 * k, 0, 0);
+        setJ(p, 'lShoulder', -0.5 * k, 0, 0.5 * k + 0.12);
+        setJ(p, 'rShoulder', -0.5 * k, 0, -0.5 * k - 0.12);
+        setJ(p, 'lElbow', -0.3 * k - 0.15);
+        setJ(p, 'rElbow', -0.6 * k - 0.15);
+        const mid = k * (1 - k);
+        setJ(p, 'lHip', -0.1 * k - 1.4 * mid);
+        setJ(p, 'rHip', -0.3 * k - 1.2 * mid);
+        setJ(p, 'lKnee', 0.1 + 0.15 * k + 1.6 * mid);
+        setJ(p, 'rKnee', 0.6 * k + 1.4 * mid);
+        setJ(p, 'spine', 0.25 * mid, 0, 0);
+        setJ(p, 'neck', 0.3 * mid, 0.4 * k, 0);
+        p[ROOT + 1] = -0.77 * k;
+      },
+    },
     throw: {
       dur: 0.75,
       events: [{ t: 0.36, name: 'release' }],
@@ -836,6 +857,109 @@ export function zombieClips(o = {}) {
         setJ(p, 'spine', hunch * (1 - k), 0, 0);
         setJ(p, 'neck', 0.3 * (1 - k), 0, 0.3 * (1 - k));
         p[ROOT + 1] = -0.77 * k;
+      },
+    },
+  };
+}
+
+// A suit of armour come down off its plinth, halberd in the right hand:
+// stiff and heavy, with one wide sweeping blow. The halberd stands upright
+// in its fist while the forearm is level (see buildArmor).
+export function armorClips() {
+  const base = humanClips();
+  const hold = (p, lift = 0) => {
+    setJ(p, 'rShoulder', -0.15 - lift, 0, -0.14);
+    setJ(p, 'rElbow', -1.35 + lift * 0.4, 0, 0);
+  };
+  return {
+    ...base,
+    // at attention on the plinth: not a tremor
+    still: {
+      loop: true,
+      fn(t, p) {
+        hold(p);
+        setJ(p, 'lShoulder', 0.02, 0, 0.1);
+        setJ(p, 'lElbow', -0.12);
+      },
+    },
+    idle: {
+      loop: true,
+      fn(t, p) {
+        hold(p);
+        setJ(p, 'lShoulder', -0.1, 0, 0.16);
+        setJ(p, 'lElbow', -0.3);
+        setJ(p, 'spine', 0.04, S(t * 0.6) * 0.06, 0);
+        setJ(p, 'neck', 0.05, S(t * 0.45) * 0.25, 0);
+        setJ(p, 'lKnee', 0.06);
+        setJ(p, 'rKnee', 0.06);
+      },
+    },
+    walk: {
+      loop: true,
+      period: () => 1 / 0.62,
+      events: STEP_EVENTS,
+      fn(t, p) {
+        gait(t, p, { freq: 0.62, leg: 0.3, arm: 0.05, knee0: 0.06, knee: 0.32, bob: 0.03, lean: 0.06, armBias: -0.2, armOut: 0.12, elbow: -0.3 });
+        hold(p, 0.25);
+        const ph = t * PI * 2 * 0.62;
+        addJ(p, 'spine', 0, 0, S(ph) * 0.05);
+        setJ(p, 'neck', 0.08, 0, 0);
+      },
+    },
+    // the halberd drawn back over the right shoulder, then swept across
+    attack: {
+      dur: 1.55,
+      events: [{ t: 0.98, name: 'hit' }],
+      fn(t, p) {
+        const a = seg(t, 0, 0.78), b = seg(t, 0.78, 1.08), c = seg(t, 1.2, 1.55);
+        const up = a * (1 - b), sweep = b * (1 - c);
+        setJ(p, 'spine', -0.12 * up + 0.22 * sweep, 0.75 * up - 0.95 * sweep, 0);
+        setJ(p, 'neck', 0.1 * sweep, -0.4 * up + 0.4 * sweep, 0);
+        setJ(p, 'rShoulder', -0.15 - 1.5 * up - 1.1 * sweep, 0, -0.14 - 0.8 * up + 0.5 * sweep);
+        setJ(p, 'rElbow', -1.35 + 0.7 * up + 0.9 * sweep);
+        setJ(p, 'lShoulder', -0.1 - 1.1 * up - 1.0 * sweep, 0, 0.2);
+        setJ(p, 'lElbow', -0.3 - 0.6 * up);
+        setJ(p, 'lHip', -0.4 * sweep);
+        setJ(p, 'lKnee', 0.4 * sweep + 0.06);
+        setJ(p, 'rKnee', 0.06 + 0.15 * up);
+        p[ROOT + 1] = -0.04 * sweep;
+        p[ROOT + 2] = 0.16 * sweep;
+      },
+    },
+    hit: {
+      dur: 0.5,
+      fade: 0.05,
+      fn(t, p) {
+        const k = S(Math.min(1, t / 0.5) * PI);
+        hold(p, 0.15 * k);
+        setJ(p, 'lShoulder', -0.2, 0, 0.2 + 0.2 * k);
+        setJ(p, 'spine', -0.22 * k, 0.12 * k, 0);
+        setJ(p, 'neck', -0.25 * k, 0, 0);
+        setJ(p, 'rHip', -0.15 * k);
+        setJ(p, 'rKnee', 0.25 * k);
+        p[ROOT + 2] = -0.05 * k;
+      },
+    },
+    // down on its knees, then over on its face
+    death: {
+      dur: 1.9,
+      fade: 0.1,
+      events: [{ t: 0.55, name: 'thud' }, { t: 1.35, name: 'thud' }],
+      fn(t, p) {
+        const a = seg(t, 0, 0.55), b = seg(t, 0.85, 1.35);
+        setJ(p, 'lShoulder', -0.3 * a * (1 - b) - 2.6 * b, 0, 0.25);
+        setJ(p, 'rShoulder', -0.6 * a * (1 - b) - 2.4 * b, 0, -0.35);
+        setJ(p, 'lElbow', -0.4);
+        setJ(p, 'rElbow', -0.5);
+        setJ(p, 'hips', 1.45 * b, 0.15 * b, 0);
+        setJ(p, 'spine', 0.35 * a * (1 - b) + 0.05 * b);
+        setJ(p, 'neck', 0.5 * a * (1 - b) - 0.3 * b, 0.5 * b, 0);
+        setJ(p, 'lHip', -1.5 * a * (1 - b) + 0.12 * b);
+        setJ(p, 'rHip', -1.4 * a * (1 - b) + 0.1 * b);
+        setJ(p, 'lKnee', 2.3 * a * (1 - b) + 0.2 * b);
+        setJ(p, 'rKnee', 2.2 * a * (1 - b) + 0.4 * b);
+        p[ROOT + 1] = -0.5 * a * (1 - b) - 0.78 * b;
+        p[ROOT + 2] = 0.42 * b;
       },
     },
   };

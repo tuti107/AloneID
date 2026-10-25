@@ -56,13 +56,18 @@ export class Horror {
       this.pos.y = damp(this.pos.y, -0.6, 1.2, dt);
       if (this.pos.y > -0.75) this.state = 'idle';
     } else if (this.state === 'burning') {
-      this.pos.y -= dt * 0.55;
+      // it writhes in the fire, sinking a little
+      this.pos.y = Math.max(-1.3, this.pos.y - dt * 0.12);
       b.core.rotation.z = Math.sin(t * 9) * 0.15;
+      if (this.pos.y < -5) { this.state = 'gone'; this.root.visible = false; }
+    } else if (this.state === 'sinking') {
+      // back into the pool, unhurried, watching him all the way down
+      this.pos.y -= dt * (0.25 + Math.min(1, t / 3) * 0.3);
       if (this.pos.y < -5) { this.state = 'gone'; this.root.visible = false; }
     } else {
       this.pos.y = -0.6 + Math.sin(t * 0.8) * 0.12;
     }
-    const writhe = this.state === 'sealed' ? 2.2 : this.state === 'burning' ? 3.5 : 1;
+    const writhe = this.state === 'sealed' ? 2.2 : this.state === 'burning' ? 3.5 : this.state === 'sinking' ? 0.6 : 1;
     b.core.rotation.y = Math.sin(t * 0.4) * 0.2;
     b.core.rotation.z = Math.sin(t * 0.33) * 0.05 * writhe;
     // the flesh heaves
@@ -196,6 +201,16 @@ export class Horror {
   seal() {
     this.state = 'sealed';
     this.attackT = 2.5;
+  }
+
+  // The tide puts the fire out: it hisses away and the thing goes down
+  // into the pool, burnt but alive.
+  drown() {
+    this.state = 'sinking';
+    this.t = 0;
+    for (const f of this.fires) this.root.remove(f);
+    this.fires = [];
+    if (this.fireLight) { this.root.remove(this.fireLight); this.fireLight = null; }
   }
 
   ignite() {

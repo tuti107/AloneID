@@ -313,6 +313,10 @@ export class Audio {
         this.noise(t, 0.05, d, { bp: 3200 * k, q: 4, vol: 1.2 });
         this.noise(t, 0.09, d, { bp: 900 * k, q: 1, vol: 1.0 });
         break;
+      case 'water':
+        this.noise(t, 0.26, d, { lp: 1500 * k, lp2: 350, vol: 1.1, attack: 0.012 });
+        for (let i = 0; i < 3; i++) this.tone(t + rand(0.03, 0.16), rand(380, 820), 0.05, d, { f2: rand(900, 1500), vol: 0.06 });
+        break;
       case 'rock':
         for (let i = 0; i < 3; i++) this.noise(t + i * 0.018, 0.04, d, { bp: rand(1500, 3500), q: 2, vol: 0.7 });
         this.noise(t, 0.12, d, { lp: 600, vol: 1.0 });
@@ -484,6 +488,14 @@ export class Audio {
         bed(this.brownBuf, { filters: [['lowpass', 380]], vol: 0.45, swell: 0.11 });
         amb.events.push({ every: [0.6, 2], fn: (tt, dd) => SFX.drip.call(this, tt, dd, rand(0.6, 1.2), {}) });
         amb.events.push({ every: [10, 20], fn: (tt, dd) => this.voice(tt, 70, 55, 3, dd, { vol: 0.05, gargle: 9, formants: [[350, 5, 1], [700, 6, 0.5]] }) });
+        break;
+      case 'tide':
+        // the house in the second act: the sea is in it
+        rainIn(0.16); wind(0.08); drone(41.2, 0.014, 'sawtooth', 100);
+        bed(this.brownBuf, { filters: [['lowpass', 320]], vol: 0.32, swell: 0.07 });
+        amb.events.push({ every: [0.9, 2.6], fn: (tt, dd) => SFX.drip.call(this, tt, dd, rand(0.7, 1.1), {}) });
+        amb.events.push({ every: [9, 18], fn: (tt, dd) => { for (let i = 0; i < 5; i++) this.noise(tt + i * 0.16 + rand(0, 0.05), 0.07, dd, { bp: rand(1600, 2600), q: 5, vol: 0.12 }); } });
+        amb.events.push({ every: [14, 26], fn: (tt, dd) => this.voice(tt, 62, 50, 2.6, dd, { vol: 0.04, gargle: 8, formants: [[330, 5, 1], [650, 6, 0.5]] }) });
         break;
       case 'dawn':
         wind(0.06); bed(this.brownBuf, { filters: [['lowpass', 400]], vol: 0.2 });
@@ -661,6 +673,8 @@ const SFX = {
   tentacle(t, d) { this.noise(t, 0.9, d, { bp: 600, bp2: 900, q: 3, vol: 1.2, attack: 0.2 }); },
   seal(t, d) { for (const [i, n] of [72, 76, 79, 84, 88].entries()) this.tone(t + i * 0.12, NOTE(n), 2.2, d, { type: 'triangle', vol: 0.12 }); this.tone(t, 55, 2.5, d, { vol: 0.4, attack: 0.5 }); },
   fireBurst(t, d) { this.noise(t, 1.6, d, { lp: 300, lp2: 3000, vol: 1.2, attack: 0.05 }); for (let i = 0; i < 25; i++) this.noise(t + rand(0.2, 2.5), 0.02, d, { bp: rand(1500, 4000), q: 2, vol: rand(0.2, 0.5) }); },
+  hiss(t, d) { this.noise(t, 2.6, d, { bp: 5200, bp2: 2200, q: 0.6, vol: 1.3, attack: 0.02 }); this.noise(t, 1.4, d, { lp: 900, lp2: 200, vol: 0.7, attack: 0.01 }); },
+  surge(t, d) { this.noise(t, 3.2, d, { buf: this.brownBuf, lp: 260, lp2: 1400, vol: 2.2, attack: 0.9 }); this.noise(t + 0.4, 2.4, d, { lp: 900, lp2: 3000, vol: 0.7, attack: 0.8 }); SFX.splash.call(this, t + 1.3, d); SFX.splash.call(this, t + 1.45, d); },
   rumble(t, d) { this.noise(t, 3, d, { buf: this.brownBuf, lp: 140, vol: 1.6, attack: 0.4 }); for (let i = 0; i < 10; i++) this.noise(t + rand(0, 2.5), 0.05, d, { bp: rand(600, 2000), q: 2, vol: rand(0.1, 0.35) }); },
   monsterStep(t, d) { this.tone(t, 70, 0.12, d, { f2: 45, vol: 0.8 }); this.noise(t, 0.08, d, { lp: 500, vol: 0.7 }); },
   // monster voices
@@ -684,6 +698,16 @@ const SFX = {
   crawlerAttack(t, d) { this.noise(t, 0.35, d, { bp: 4500, q: 1, vol: 0.5, attack: 0.02 }); },
   crawlerHurt(t, d) { this.voice(t, 600, 900, 0.25, d, { vol: 0.3, gargle: 45, formants: [[1500, 4, 1], [3000, 5, 0.5]] }); },
   crawlerDie(t, d) { this.voice(t, 700, 200, 0.7, d, { vol: 0.35, gargle: 40, formants: [[1500, 4, 1], [3000, 5, 0.5]] }); this.noise(t, 0.3, d, { lp: 900, vol: 0.4 }); },
+  // the armour: grinding plate, a hollow breath inside the helm, the clang of a blow
+  armorStep(t, d) { this.tone(t, 64, 0.2, d, { f2: 40, vol: 1.0 }); this.noise(t, 0.1, d, { lp: 600, vol: 0.8 }); this.noise(t, 0.06, d, { bp: rand(1600, 2400), q: 6, vol: 0.45 }); this.tone(t + 0.01, rand(900, 1300), 0.18, d, { type: 'triangle', vol: 0.05 }); },
+  armorNotice(t, d) { for (let i = 0; i < 5; i++) this.noise(t + i * 0.09, 0.08, d, { bp: rand(700, 1300), q: 7, vol: 0.5 }); SFX.creak.call(this, t + 0.1, d, 0.6, { vol: 1 }); this.voice(t + 0.45, 66, 52, 1.6, d, { vol: 0.45, gargle: 6, formants: [[280, 5, 1], [560, 6, 0.5]], breath: 500 }); },
+  armorGrowl(t, d) { this.voice(t, rand(58, 70), 50, rand(1.0, 1.6), d, { vol: 0.25, gargle: 5, formants: [[260, 5, 1], [520, 6, 0.5]], breath: 400 }); },
+  armorAttack(t, d) { for (let i = 0; i < 4; i++) this.noise(t + i * 0.08, 0.06, d, { bp: rand(900, 1500), q: 6, vol: 0.4 }); this.noise(t + 0.85, 0.35, d, { bp: 700, bp2: 2600, q: 1.2, vol: 1.2, attack: 0.08 }); },
+  armorHurt(t, d) { for (const [f, v] of [[523, 0.16], [1347, 0.1], [2211, 0.06], [3120, 0.04]]) this.tone(t, f * rand(0.97, 1.03), 0.7, d, { type: 'triangle', vol: v, attack: 0.001 }); this.noise(t, 0.05, d, { bp: 3000, q: 2, vol: 0.5 }); },
+  armorDie(t, d) { for (let i = 0; i < 7; i++) { const tt = t + rand(0.4, 1.6); this.tone(tt, rand(400, 1400), 0.5, d, { type: 'triangle', vol: 0.08, attack: 0.001 }); this.noise(tt, 0.05, d, { bp: rand(1500, 3000), q: 3, vol: 0.4 }); } this.voice(t, 70, 40, 1.4, d, { vol: 0.4, gargle: 5, formants: [[280, 5, 1], [560, 6, 0.5]] }); },
+  // a woman's scream, and her cry cut short as she goes under
+  scream(t, d) { this.voice(t, 620, 880, 1.5, d, { vol: 0.55, formants: [[1000, 6, 1], [1600, 7, 0.7], [2900, 8, 0.35]], breath: 2600, vib: 0.05, vibRate: 6 }); },
+  cry(t, d) { this.voice(t, 540, 300, 0.7, d, { vol: 0.5, formants: [[900, 6, 1], [1500, 7, 0.6]], breath: 2200, gargle: 20 }); },
   ghostNotice(t, d) { SFX.ghostScream.call(this, t, d); },
   ghostScream(t, d) {
     this.tone(t, 520, 1.6, d, { f2: 980, glide: 0.5, vol: 0.18, vib: 40, vibRate: 6, attack: 0.08 });

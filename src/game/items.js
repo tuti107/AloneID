@@ -183,6 +183,7 @@ export const ITEMS = {
   notes: { name: 'サイラスの覚え書き', actions: ['read'], doc: 'notes', model: paperModel(0xe0d4b8) },
   eleanor: { name: 'エレノアの手紙', actions: ['read'], doc: 'eleanor', model: letter },
   photo: { name: '古い写真', actions: ['read'], doc: 'photo', model: photo },
+  claraNote: { name: 'クララの手帳', actions: ['read'], doc: 'clara', model: book(0x3a2430) },
   brassKey: { name: '真鍮の小さな鍵', key: true, actions: ['use', 'examine'], desc: '小さな真鍮の鍵。机の引き出しのものだろうか。', model: keyModel(brass, 0.8) },
   bedroomKey: { name: '寝室の鍵', key: true, actions: ['use', 'examine'], desc: '「主寝室」と刻まれた鉄の鍵。', model: keyModel(M('iron'), 1.1) },
   clockKey: { name: '時計のぜんまい鍵', key: true, actions: ['use', 'examine'], desc: '大時計のぜんまいを巻くための鍵。サイラスの首に掛かっていた。', model: windingKey },

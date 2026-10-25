@@ -10,6 +10,7 @@ const KEYMAP = {
   Enter: ['confirm', 'action'], NumpadEnter: ['confirm', 'action'],
   KeyX: ['attack', 'cancel'], KeyF: ['attack'], ControlLeft: ['attack'], ControlRight: ['attack'],
   KeyI: ['inventory'], KeyC: ['inventory'], Tab: ['inventory'],
+  KeyM: ['map'],
   Escape: ['pause', 'cancel'], KeyP: ['pause'], Backspace: ['cancel'],
 };
 const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab', 'Backspace']);

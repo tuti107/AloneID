@@ -7,6 +7,15 @@ import { Horror } from '../boss.js';
 import { starStoneModel } from '../items.js';
 import { rng } from '../../engine/util.js';
 
+// The flood after the fire: seconds to get out, and how far the water has
+// come (0 to 1) by now.
+export const FLOOD_TIME = 60;
+export function floodLevel(g) {
+  if (!g.flags.flameDrowned) return 0;
+  if (!g.escape) return 1;
+  return Math.min(1, Math.max(0, 1 - g.escape.t / (g.escape.total || FLOOD_TIME)));
+}
+
 export default {
   id: 'cavern',
   name: '地下洞窟',
@@ -45,6 +54,21 @@ export default {
       wp.needsUpdate = true;
       waterGeo.computeVertexNormals();
     });
+    // the flood: the pool brims over and fills the cave
+    const flood = new THREE.Mesh(new THREE.PlaneGeometry(15.4, 12.4), new THREE.MeshPhongMaterial({ color: 0x041410, specular: 0x7a9a90, shininess: 110, transparent: true, opacity: 0.82, depthWrite: false }));
+    flood.rotation.x = -Math.PI / 2;
+    flood.position.set(-0.2, -0.3, -0.7);
+    flood.receiveShadow = true;
+    r.dynamic.add(flood);
+    r.updaters.push((dt, t) => {
+      const k = floodLevel(g);
+      flood.visible = k > 0;
+      flood.position.y = -0.06 + k * 1.0 + Math.sin(t * 0.9) * 0.015;
+      r.floodY = flood.position.y;
+      if (k > 0) water.position.y = Math.max(-0.28, flood.position.y - 0.03);
+    });
+    r.waterAt = () => (r.floodY || -1) > 0.01;
+    r.wade = () => 1 - 0.45 * Math.min(1, Math.max(0, ((r.floodY || 0) - 0.2) / 0.6));
     // rim of rocks along the pool edge
     for (let x = -6.8; x <= 6.8; x += 1.1) {
       if (Math.abs(x) < 1.2) continue;
@@ -157,9 +181,8 @@ export default {
     r.horror = new Horror(g, r, { x: 0, z: -4.9, edge: -2.25 });
     r.boss = r.horror;
     r.updaters.push((dt) => r.horror.update(dt));
-    if (g.flags.horrorDead) {
+    if (g.flags.flameDrowned) {
       r.horror.state = 'gone';
-      burnAltar(r);
     } else if (g.flags.horrorRisen) {
       r.horror.rise(true);
       if (g.flags.altarSealed) r.horror.seal();
@@ -194,7 +217,7 @@ export default {
   },
 
   setup(r, g) {
-    if (g.flags.horrorRisen && !g.flags.horrorDead) g.audio.music('boss');
+    if (g.flags.horrorRisen && !g.flags.flameDrowned) g.audio.music('boss');
   },
 };
 
@@ -252,14 +275,98 @@ async function seal(r, g) {
 }
 
 function burnAltar(r) {
+  const fire = r.altarFire = { sprites: [], light: null };
   for (let i = 0; i < 6; i++) {
     const f = new THREE.Sprite(spriteMat('flame', 0xffffff, 0.9));
     const s = 0.5 + Math.random() * 0.5;
     f.scale.set(s * 0.6, s, 1);
     f.position.set((Math.random() - 0.5) * 1.2, 1.2 + Math.random() * 0.4, -1.75 + (Math.random() - 0.5) * 0.5);
     r.dynamic.add(f);
+    fire.sprites.push(f);
   }
-  r.point(0, 1.8, -1.6, { color: 0xff7a2a, intensity: 22, distance: 12, flicker: 0.3 });
+  fire.light = r.point(0, 1.8, -1.6, { color: 0xff7a2a, intensity: 22, distance: 12, flicker: 0.3 });
+}
+
+// The tide puts the fire out, on the altar and on the thing itself.
+function douse(r, g) {
+  g.audio.sfx('hiss');
+  g.audio.sfx('splash');
+  // it breaks over everything: a moment of black water
+  g.gfx.u.uFade.value = 0.85;
+  g.fade(0, 0.8);
+  g.shake(0.16, 0.8);
+  g.burst('splash', 0, 1.3, -2.1, { n: 34, speed: 3.2, up: 3.4 });
+  g.burst('steam', 0, 1.1, -1.9, { n: 18 });
+  g.burst('steam', 0, 2.4, -4.4, { n: 24, size: 0.9 });
+  const fire = r.altarFire;
+  if (fire) {
+    for (const f of fire.sprites) r.dynamic.remove(f);
+    fire.light.userData.off = true;
+    r.altarFire = null;
+  }
+  r.horror.drown();
+  // the wave knocks him back a step
+  const p = g.player;
+  p.playClip('hit', { fade: 0.05 });
+  p.knock.set(0, 2.2);
+}
+
+// A black wave heaves up out of the pool, rolls over the burning thing and
+// the altar, and falls back. Resolves when it has gone.
+function wave(r, g) {
+  const geo = new THREE.PlaneGeometry(11, 5.6, 24, 16);
+  const pos = geo.attributes.position;
+  const base = Float32Array.from(pos.array);
+  // near black water, so the cave's green light hardly touches it, under a
+  // pale crest of foam that catches the fire
+  const cols = new Float32Array(pos.count * 3);
+  const dark = new THREE.Color(0x050e0b), foam = new THREE.Color(0x7a948c);
+  for (let i = 0; i < pos.count; i++) {
+    const v = (base[i * 3 + 1] + 2.8) / 5.6;
+    const c = dark.clone().lerp(foam, Math.min(1, Math.max(0, (v - 0.86) / 0.12)));
+    cols.set([c.r, c.g, c.b], i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  m.position.set(0, -0.6, -5.6);
+  r.dynamic.add(m);
+  let t = 0, doused = false, spray = 0;
+  return new Promise((res) => {
+    const upd = (dt, time) => {
+      t += dt;
+      // up out of the pool (0-0.9 s), rolling forward to break over the
+      // altar (0.7-1.7 s), then falling back into the pool (to 2.6 s)
+      const rise = Math.min(1, t / 0.9);
+      const roll = Math.min(1, Math.max(0, (t - 0.7) / 1.0));
+      const fall = Math.min(1, Math.max(0, (t - 1.7) / 0.9));
+      const H = 5.6 * (0.25 + 0.75 * rise) * (1 - fall * 0.85);
+      for (let i = 0; i < pos.count; i++) {
+        const x = base[i * 3], v = (base[i * 3 + 1] + 2.8) / 5.6;
+        const ripple = Math.sin(x * 1.7 + time * 4) * 0.14 + Math.sin(x * 3.1 - time * 6) * 0.07;
+        // the crest leans further forward, curling, as it rolls
+        pos.setXYZ(i, x * (1 - 0.08 * v), v * H + ripple * v, (0.4 + roll * 2.8) * v * v * v + ripple * 0.5);
+      }
+      pos.needsUpdate = true;
+      geo.computeVertexNormals();
+      m.position.z = -5.6 + roll * 2.6;
+      m.position.y = -0.6 - fall * 1.8;
+      // spray off the crest as it comes over
+      spray -= dt;
+      if (rise > 0.5 && fall < 0.5 && spray <= 0) {
+        spray = 0.07;
+        const x = (Math.random() - 0.5) * 9;
+        g.burst('foam', x, m.position.y + H * 0.97, m.position.z + (0.4 + roll * 2.8) * 0.94, { n: 5 });
+      }
+      if (!doused && t > 1.35) { doused = true; douse(r, g); }
+      if (t > 2.6) {
+        r.updaters.splice(r.updaters.indexOf(upd), 1);
+        r.dynamic.remove(m);
+        geo.dispose();
+        res();
+      }
+    };
+    r.updaters.push(upd);
+  });
 }
 
 async function burn(r, g) {
@@ -309,16 +416,33 @@ async function burn(r, g) {
   await g.wait(2.0);
   await g.say('砕けたランプの油に火が走り、\n炎が偶像と怪物を呑み込んだ――！');
   g.audio.sfx('roar');
-  await g.wait(3.5);
-  g.flags.horrorDead = true;
-  r.boil = 0;
+  await g.wait(1.4);
+  // ...and the sea answers it
+  r.boil = 1;
   g.audio.music(null);
+  g.audio.sfx('surge');
+  g.shake(0.1, 2.4);
+  g.cut({ pos: [4.6, 1.9, 3.9], look: [0, 2.3, -3.6], fov: 64 });
+  await wave(r, g);
+  g.flags.flameDrowned = true;
+  g.flags.lampLit = false;
+  r.boil = 0.5;
+  await g.wait(0.8);
+  await g.say('――淵の底から黒い潮がうねり上がり、\n炎を、一瞬で呑み込んだ。');
+  // it sinks back, scorched but alive, every eye on him to the last
+  g.cut({ pos: [-2.6, 1.3, -0.2], look: [0.3, 0.2, -4.9], fov: 50 });
+  g.audio.sfx('roar', { rate: 0.6 });
+  await g.wait(2.6);
+  await g.say('怪物は燃え尽きたのではない。\n無数の眼でこちらを見据えたまま、\n潮の底へ、ゆっくりと帰っていく……。');
+  g.cut(null);
+  await g.wait(0.4);
+  await g.say('……この火では、足りないのか。');
   g.audio.sfx('rumble');
   g.shake(0.18, 2.5);
+  r.boil = 0.8;
   await g.wait(1.0);
-  g.cut(null);
-  await g.say('地鳴りとともに、洞窟が崩れ始めた！\n急いで屋敷から脱出しなければ――！');
-  g.escape = { t: 100 };
+  await g.say('淵の水があふれ出した！\nこのままでは、洞窟ごと潮に沈む――！');
+  g.escape = { t: FLOOD_TIME, total: FLOOD_TIME };
   g.audio.music('escape');
   g.unlock();
 }

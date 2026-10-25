@@ -560,8 +560,9 @@ export class Room {
         fb(pivot, pm, lw * 0.62, h * 0.32, 0.02, cx, py, 0.035);
       }
       if (o.glass) {
+        // clear of the raised panel behind it (0.025-0.045)
         const gm = new THREE.MeshBasicMaterial({ color: 0x223040 });
-        fb(pivot, gm, lw * 0.5, h * 0.25, 0.02, cx, h * 0.72, 0.05);
+        fb(pivot, gm, lw * 0.5, h * 0.25, 0.02, cx, h * 0.72, 0.058);
       }
       const knob = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), M('brass', { phong: true, shininess: 60, specular: 0x887755 }));
       knob.position.set(cx + dir * (lw / 2 - 0.09), 1.0, 0.07);
@@ -712,6 +713,8 @@ export class Room {
   }
 
   floorTypeAt(x, z) {
+    // a flooded floor splashes, whatever it is made of
+    if (this.waterAt && this.waterAt(x, z)) return 'water';
     for (let i = this.floorZones.length - 1; i >= 0; i--) {
       const f = this.floorZones[i];
       if (x >= f.r[0] && x <= f.r[2] && z >= f.r[1] && z <= f.r[3]) return f.type;

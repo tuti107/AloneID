@@ -1,6 +1,8 @@
 // 地下室 — the wine cellar. Pitch dark without a lamp.
+import * as THREE from 'three';
 import * as F from '../furniture.js';
 import { M, C } from '../mats.js';
+import { floodLevel } from './cavern.js';
 
 export default {
   id: 'cellar',
@@ -78,6 +80,20 @@ export default {
 
     r.hemi(0x2a3448, 0x0a0806, 0.7);
 
+    // after the fire: the sea comes up the tunnel behind him
+    const flood = new THREE.Mesh(new THREE.PlaneGeometry(11.2, 6.4), new THREE.MeshPhongMaterial({ color: 0x041410, specular: 0x6a9a8a, shininess: 100, transparent: true, opacity: 0.8, depthWrite: false }));
+    flood.rotation.x = -Math.PI / 2;
+    flood.position.set(0.2, -0.2, 0);
+    r.dynamic.add(flood);
+    r.updaters.push((dt, t) => {
+      const k = floodLevel(g);
+      flood.visible = k > 0.12;
+      flood.position.y = -0.08 + k * 0.5 + Math.sin(t * 0.9) * 0.01;
+      r.floodY = flood.position.y;
+    });
+    r.waterAt = () => (r.floodY || -1) > 0.01;
+    r.wade = () => 1 - 0.3 * Math.min(1, Math.max(0, ((r.floodY || 0) - 0.15) / 0.3));
+
     for (const [id, x, z] of [['crawler1', 1.2, 1.6], ['crawler2', 3.0, -0.9]]) {
       if (!g.flags['dead:' + id]) g.spawn(r, { id, type: 'crawler', x, z, rot: Math.random() * 6, onDeath: () => { g.flags['dead:' + id] = true; } });
     }
@@ -87,12 +103,13 @@ export default {
   },
 
   setup(r, g) {
-    if (g.flags.horrorDead) {
-      if (!r.fireLit) {
-        r.fireLit = true;
+    if (g.flags.flameDrowned) {
+      // the sea coming up the tunnel glows, a little: enough to run by
+      if (!r.tideLit) {
+        r.tideLit = true;
         r.dark = false;
-        r.point(4.4, 1.4, 0.2, { color: 0xff6a20, intensity: 22, distance: 11, flicker: 0.45, speed: 5 });
-        for (let i = 0; i < 4; i++) r.flame(5.2, 0.1 + i * 0.3, -0.2 + i * 0.25, { size: 0.5, light: false });
+        r.point(4.6, 0.6, 0.2, { color: 0x3a9a70, intensity: 14, distance: 10, flicker: 0.25, speed: 1.5 });
+        r.point(-2.0, 2.0, 0.0, { color: 0x4a7a6a, intensity: 4, distance: 9 });
       }
       return;
     }

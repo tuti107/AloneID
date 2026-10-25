@@ -516,7 +516,52 @@ export class Ghost extends Monster {
   }
 }
 
+// The hall's suit of armour. It stands on its plinth (dormant) until he
+// comes close or strikes it; then the visor lights and it steps down.
+const ARMOR_T = { build: CH.buildArmor, hp: 120, dmg: 24, speed: 0.72, turn: 1.9, range: 1.75, sight: 12, cd: 1.5, radius: 0.36, voice: 'armor', stagger: 30, poise: 2.2 };
+export class Armor extends Monster {
+  constructor(game, room, o) {
+    super(game, room, { ...o, type: 'armor', T: ARMOR_T, dormant: !o.awake });
+    this.faceMat = this.parts.faceMat;
+    this.wakeR = o.wakeR ?? 2.3;
+    this.trackTime = 0.7;
+    this.setEyes(!!o.awake);
+  }
+  setEyes(on) {
+    if (this.faceMat && this.faceMat.emissive) this.faceMat.emissive.setHex(on ? 0xffffff : 0x000000);
+  }
+  wake() {
+    if (this.state !== 'dormant') return;
+    this.setEyes(true);
+    if (this.onWake) this.onWake(this);
+    super.wake();
+  }
+  update(dt) {
+    if (this.state === 'dormant' && !this.hidden) {
+      const p = this.player;
+      if (p.alive && Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z) < this.wakeR) this.wake();
+    }
+    super.update(dt);
+  }
+  damage(n, fromX, fromZ, knock = 1) {
+    if (this.state === 'dormant') this.wake();
+    // plate turns a blow: it barely rocks
+    return super.damage(n, fromX, fromZ, knock * 0.35);
+  }
+  onAnimEvent(e) {
+    if (e === 'step') { this.game.audio.sfx('armorStep', { at: this.pos }); return; }
+    super.onAnimEvent(e);
+  }
+  restore(d) {
+    super.restore(d);
+    const awake = this.state !== 'dormant';
+    this.setEyes(awake && this.alive);
+    if (awake) this.hover = 0;
+  }
+}
+
 export function makeMonster(game, room, o) {
+  if (o.type === 'armor') return new Armor(game, room, o);
   if (o.type === 'ghoul') return new Ghoul(game, room, o);
   if (o.type === 'crawler') return new Crawler(game, room, o);
   if (o.type === 'ghost') return new Ghost(game, room, o);

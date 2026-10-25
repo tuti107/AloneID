@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { frustum } from '../engine/geom.js';
 import { C } from './mats.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, setJ, ROOT } from './rig.js';
+import { buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, armorClips, setJ, ROOT } from './rig.js';
 import { loft, shell, ringAt, surfacePoint, headGeo } from './body.js';
 import { tex } from '../engine/textures.js';
 import { rng } from '../engine/util.js';
@@ -110,6 +110,97 @@ export function buildInvestigator() {
     },
   });
   return { parts, clips: humanClips() };
+}
+
+// ------------------------------------------------------------------ Clara
+// Silas's daughter, come from Boston in the storm: cloche hat over a dark
+// bob, a long wool coat with a fur collar, gloves, stockings.
+export function buildClara() {
+  const coat = 0x4a5a6e, coatDark = 0x2c3846, fur = 0x8a7660;
+  const parts = buildHumanoid({
+    hipY: 0.9, thigh: 0.43, shin: 0.42, torsoLen: 0.52,
+    chest: [0.34, 0.21], waist: [0.27, 0.17], pelvis: [0.3, 0.14, 0.2], bust: 0.016, head: [0.168, 0.208, 0.192],
+    shoulderX: 0.17, armW: 0.08, legW: 0.115, upperArm: 0.28, foreArm: 0.25, handW: 0.07,
+    colors: { torso: coat, arms: coat, legs: 0xbfa48a, pelvis: coat, skin: 0xe4c4ae, shoes: 0x120c0a, hair: 0x2a170e, hands: 0x241a16 },
+    face: 'faceClara',
+    hair: { front: 0.62, side: -0.18, back: -0.55, thick: 0.016 },
+    extras(p, spec) {
+      const j = p.joints, T = p.surf.torso, L = spec.torsoLen;
+      const cd = S(coatDark);
+      // the coat hangs to mid-calf, swinging with each leg
+      for (const side of ['l', 'r']) legSkirt(p, side, S(coat, true), [[0.1, 0.122, 0.13], [-0.1, 0.13, 0.142, -0.004], [-0.38, 0.142, 0.158, -0.01], [-0.66, 0.152, 0.17, -0.016]]);
+      // belt, and two rows of buttons
+      band(j.spine, cd, T, 0.05, 0.095, 0.01);
+      for (const sx of [-1, 1]) {
+        for (const y of [L * 0.3, L * 0.52]) {
+          const b = surfacePoint(T, y, sx * 0.3, 0.008);
+          box(j.spine, C(0x0e0c0a), 0.016, 0.016, 0.01, b.x, b.y, b.z, 0, sx * 0.3, 0);
+        }
+      }
+      // a deep fur collar round the shoulders
+      add(j.spine, loft([[L - 0.06, 0.13, 0.1, 0, -0.004], [L - 0.01, 0.12, 0.095, 0, -0.006], [L + 0.035, 0.085, 0.075, 0, -0.008], [L + 0.06, 0.06, 0.056, 0, -0.008]], 12, { caps: false }), S(fur));
+      // cuffs
+      for (const side of ['l', 'r']) band(j[side + 'Elbow'], cd, p.surf.foreArm, -spec.foreArm * 0.72, -spec.foreArm * 0.86, 0.008, 8);
+      // cloche hat, pulled down to the brows, with a band
+      const felt = S(0x2e2a3a);
+      const hat = onHead(p, loft([[-0.012, 0.112, 0.124, 0, 0.004], [0.0, 0.104, 0.116, 0, 0.002], [0.05, 0.1, 0.11], [0.1, 0.088, 0.096, 0, -0.004], [0.13, 0.058, 0.066, 0, -0.006], [0.142, 0, 0, 0, -0.006]], 14), felt, 0, 0.32, -0.04);
+      hat.rotation.x = -0.12;
+      const bandM = onHead(p, loft([[0.008, 0.1055, 0.1175, 0, 0.002], [0.026, 0.1035, 0.1155, 0, 0.001]], 14, { caps: false, off: 0.002 }), S(0x6a1e28), 0, 0.32, -0.04);
+      bandM.rotation.x = -0.12;
+    },
+  });
+  return { parts, clips: humanClips() };
+}
+
+// ------------------------------------------------------------------ armour
+// The suit of armour from the hall: plate over nothing, a visor slit with
+// something burning behind it once it wakes, and its halberd.
+export function buildArmor() {
+  const iron = 0x707076, ironDark = 0x4a4a50;
+  const shine = { phong: true, shininess: 70, specular: 0x9a9aa0, flat: false };
+  const I = (c) => C(c, shine);
+  const parts = buildHumanoid({
+    hipY: 0.97, thigh: 0.46, shin: 0.45, torsoLen: 0.58,
+    chest: [0.5, 0.31], waist: [0.36, 0.25], pelvis: [0.37, 0.17, 0.25], head: [0.23, 0.28, 0.26],
+    shoulderX: 0.225, armW: 0.13, legW: 0.165, upperArm: 0.3, foreArm: 0.28, handW: 0.095,
+    matOpts: shine,
+    colors: { torso: iron, arms: iron, legs: iron, pelvis: ironDark, skin: iron, shoes: ironDark, hands: ironDark, neck: ironDark },
+    face: 'faceArmor', faceGlow: 'faceArmorGlow', ears: false, hair: false,
+    headShape: { nose: 0.15, jaw: 1.15 },
+    extras(p, spec) {
+      const j = p.joints, T = p.surf.torso, L = spec.torsoLen;
+      // gorget and a ridge down the breastplate
+      band(j.spine, I(ironDark), T, L - 0.06, L + 0.02, 0.016, 12);
+      plate(j.spine, I(0x7c7c82), T, [[L * 0.25, -0.06, 0.06], [L * 0.7, -0.05, 0.05], [L * 0.9, -0.03, 0.03]], 2, 0.012);
+      band(j.spine, I(ironDark), T, 0.02, 0.07, 0.014, 12);
+      for (const side of ['l', 'r']) {
+        const sx = side === 'l' ? 1 : -1;
+        // pauldrons over the shoulders
+        const pd = add(j[side + 'Shoulder'], new THREE.SphereGeometry(0.12, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), I(iron), sx * 0.025, -0.01, 0);
+        pd.scale.set(1.2, 0.95, 1.1);
+        pd.rotation.z = sx * 0.25;
+        // couters and poleyns
+        add(j[side + 'Elbow'], new THREE.SphereGeometry(0.066, 10, 6), I(ironDark), 0, 0, -0.01);
+        add(j[side + 'Knee'], new THREE.SphereGeometry(0.08, 10, 6), I(ironDark), 0, 0, 0.035);
+        // tassets over the thighs
+        legSkirt(p, side, I(ironDark), [[0.06, 0.135, 0.145], [-0.1, 0.145, 0.155, -0.004], [-0.22, 0.148, 0.158, -0.006]]);
+      }
+      // a crest along the helm
+      onHead(p, new THREE.BoxGeometry(0.022, 0.06, 0.24), I(ironDark), 0, 0.97, -0.05);
+      // the halberd: its pole stands along the fist's z, upright while the
+      // forearm is held level
+      const hal = new THREE.Group();
+      hal.rotation.x = Math.PI / 2;
+      p.rGrip.add(hal);
+      const steel = C(0x9a9aa2, { phong: true, shininess: 90, specular: 0xcccccc });
+      add(hal, new THREE.CylinderGeometry(0.019, 0.022, 2.25, 6), C(0x3a2818), 0, 0.17, 0);
+      add(hal, new THREE.BoxGeometry(0.24, 0.3, 0.014), steel, 0.13, 1.08, 0);
+      add(hal, new THREE.BoxGeometry(0.13, 0.035, 0.014), steel, -0.08, 1.12, 0);
+      add(hal, new THREE.ConeGeometry(0.028, 0.26, 6), steel, 0, 1.42, 0);
+      p.halberd = hal;
+    },
+  });
+  return { parts, clips: armorClips() };
 }
 
 // ------------------------------------------------------------------ zombies

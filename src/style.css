@@ -134,6 +134,15 @@ body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit
 .dial { display: flex; flex-direction: column; align-items: center; padding: calc(var(--u) * 6) calc(var(--u) * 10); }
 .dial canvas { width: calc(var(--u) * 110); height: calc(var(--u) * 110); image-rendering: pixelated; }
 
+/* ---------------------------------------------------------------- map */
+.mapbox { display: flex; flex-direction: column; align-items: center; padding: calc(var(--u) * 5) calc(var(--u) * 7) calc(var(--u) * 4); }
+.mapbox .tabs { display: flex; gap: calc(var(--u) * 3); margin: calc(var(--u) * 3) 0; }
+.mapbox .tabs span { padding: 0 calc(var(--u) * 5); border: 1px solid var(--gold2); color: var(--dim); cursor: pointer; }
+.mapbox .tabs span.sel { color: #fff; border-color: var(--gold); background: rgba(184,149,74,0.28); }
+.mapbox canvas { display: block; width: calc(var(--u) * 286); height: calc(var(--u) * 152); }
+.mapbox .foot { display: flex; gap: calc(var(--u) * 6); align-items: center; margin-top: calc(var(--u) * 3); color: var(--dim); }
+.mapbox .foot .close { color: var(--gold); border: 1px solid var(--gold2); padding: 0 calc(var(--u) * 4); cursor: pointer; }
+
 /* ---------------------------------------------------------------- fades */
 #curtain { position: absolute; inset: 0; background: #000; pointer-events: none; opacity: 0; display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre-wrap; padding: 8%; box-sizing: border-box; }
 #curtain .t { opacity: 0; transition: opacity 1.2s; line-height: 2; letter-spacing: 0.06em; }

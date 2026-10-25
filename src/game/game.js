@@ -12,12 +12,19 @@ import { Inventory, ITEMS } from './items.js';
 import { UI, MessageModal, ChoiceModal, MenuModal, InventoryModal, DocumentModal, DialModal, Modal, el } from './ui.js';
 import { ROOMS } from './rooms/index.js';
 import { makeMonster } from './monsters.js';
-import { DOCS, PROLOGUE, EPILOGUE } from './text.js';
+import { DOCS, PROLOGUE, ENDINGS } from './text.js';
 import { TitleScene } from './title.js';
 import { burst } from './fx.js';
+import { MapModal } from './mapscreen.js';
 
 const SAVE_KEY = 'ashcombe.save.';
+// v1: the house as it was, one act. v2: two acts (flags.act).
+const SAVE_VERSION = 2;
+// Rooms kept built at once; older ones are rebuilt from their saved state
+// when entered again, which keeps memory in check on phones.
+const MAX_ROOMS = 6;
 const SETTINGS_KEY = 'ashcombe.settings.v2';
+const ENDINGS_KEY = 'ashcombe.endings';
 const REDUCED_MOTION = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const COARSE = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 const DEFAULT_SETTINGS = { controls: 'modern', res: 'low', dither: true, shadows: COARSE ? 1 : 2, music: 0.7, sfx: 0.9 };
@@ -29,6 +36,22 @@ function loadSettings() {
   } catch (e) {
     return { ...DEFAULT_SETTINGS };
   }
+}
+
+// A save from an older version of the game, brought up to date.
+function migrateSave(d0) {
+  const d = JSON.parse(JSON.stringify(d0));
+  d.flags = d.flags || {};
+  // Before the second act, the fire in the cavern ended the game: a save
+  // made while escaping it now escapes the flood instead.
+  if (d.flags.horrorDead) {
+    delete d.flags.horrorDead;
+    d.flags.flameDrowned = true;
+    if (d.room !== 'cavern' && d.room !== 'cellar') d.escape = null;
+  }
+  d.v = SAVE_VERSION;
+  d.act = d.flags.act || 1;
+  return d;
 }
 
 // Full-screen text cards on black (prologue/epilogue).
@@ -163,6 +186,7 @@ export class Game {
     if (this.state === 'play' && !this.modals.length && !this.locked && this.player.alive) {
       if (this.input.pressed('pause')) { this.input.consume('pause'); this.openPause(); }
       else if (this.input.pressed('inventory')) { this.input.consume('inventory'); this.openInventory(); }
+      else if (this.input.pressed('map')) { this.input.consume('map'); this.openMap(); }
     }
     this.ui.update(dt);
     if (this.toastT > 0) {
@@ -213,7 +237,7 @@ export class Game {
       if (this.escape.t <= 0 && this.player.alive) {
         this.escape = null;
         this.ui.setTimer(null);
-        this.deathText = '崩れ落ちる屋敷に、エドガーは呑み込まれた……';
+        this.deathText = this.flags.flameDrowned && this.act === 1 ? '押し寄せる黒い潮に、エドガーは呑み込まれた……' : '崩れ落ちる屋敷に、エドガーは呑み込まれた……';
         this.player.hp = 0;
         this.player.die();
       }
@@ -362,6 +386,7 @@ export class Game {
     else if (this.room) this.director.update(this.player.pos, 0, true);
   }
   setFlag(k, v = true) { this.flags[k] = v; }
+  get act() { return this.flags.act || 1; }
   has(id) { return this.inv.has(id); }
 
   async give(id, o = {}) {
@@ -416,6 +441,44 @@ export class Game {
     return r;
   }
 
+  disposeRoom(r) {
+    if (this.room === r) this.room = null;
+    r.scene.remove(this.player.root);
+    r.scene.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); });
+  }
+
+  // Let go of the rooms least lately entered; their state is kept, so they
+  // are built again just as they were left.
+  trimRooms() {
+    const old = Object.values(this.rooms).filter((r) => r !== this.room).sort((a, b) => (a.usedAt || 0) - (b.usedAt || 0));
+    while (old.length > MAX_ROOMS - 1) {
+      const r = old.shift();
+      this.savedRoomState[r.id] = this.roomState(r);
+      this.disposeRoom(r);
+      delete this.rooms[r.id];
+    }
+  }
+
+  // A new act: the house changes. Every room is built again for it when
+  // next entered; what was taken, opened and solved (flags) and what was
+  // pushed where (room state) carry over.
+  setAct(n) {
+    for (const r of Object.values(this.rooms)) {
+      this.savedRoomState[r.id] = this.roomState(r);
+      this.disposeRoom(r);
+    }
+    this.rooms = {};
+    this.room = null;
+    this.flags.act = n;
+  }
+
+  hasRoom(id) { return !!ROOMS[id]; }
+
+  // A way on that is not built yet (the game is growing act by act).
+  async notYet() {
+    await this.say('扉の向こうから、潮の匂いが吹き込んでくる……。\n（この先は、次の更新で追加されます）');
+  }
+
   spawn(room, o) {
     const m = makeMonster(this, room, o);
     room.addMonster(m);
@@ -439,10 +502,12 @@ export class Game {
     this.director.setRoom(room);
     if (room.def.setup) room.def.setup(room, this, entry);
     this.director.update(this.player.pos, 0, true);
-    this.audio.setAmbience(room.def.ambience || 'house', room);
+    this.audio.setAmbience(room.ambience || room.def.ambience || 'house', room);
     if (!o.quiet) this.ui.showRoomName(room.name);
     room.visited = true;
+    room.usedAt = this.roomClock = (this.roomClock || 0) + 1;
     this.flags['visited:' + id] = true;
+    this.trimRooms();
     this.updateHud();
     this.lightningT = Math.min(this.lightningT, 4 + Math.random() * 6);
   }
@@ -492,6 +557,7 @@ export class Game {
         await this.say(door.unlockMsg || `${ITEMS[door.key].name}を使って、扉の鍵を開けた。`);
       } else {
         this.audio.sfx('locked', { at: this.player.pos });
+        this.flags['locked:' + door.id] = true;
         await this.say(door.lockedMsg || '鍵がかかっている。');
         return false;
       }
@@ -821,6 +887,13 @@ export class Game {
     return true;
   }
 
+  // Text cards on black between scenes; leaves the screen black.
+  async curtain(pages, o) {
+    this.gfx.u.uFade.value = 1;
+    await new CurtainModal(this, pages, o).open();
+    this.ui.setCurtain(0);
+  }
+
   async dial(hour) {
     return new DialModal(this, hour).open();
   }
@@ -860,6 +933,7 @@ export class Game {
       items: [
         { label: 'ゲームに戻る', onSelect: (mm) => mm.close() },
         { label: '持ち物を見る', onSelect: (mm) => { mm.close(); this.openInventory(); } },
+        { label: '地図を見る', onSelect: (mm) => { mm.close(); this.openMap(); } },
         { label: 'セーブ', onSelect: () => this.openSaveMenu('save') },
         { label: 'ロード', onSelect: () => this.openSaveMenu('load') },
         { label: '設定', onSelect: () => this.openOptions() },
@@ -872,20 +946,26 @@ export class Game {
     m.open();
   }
 
+  openMap() {
+    if (this.topModal() || !this.room) return;
+    this.audio.ui('open');
+    new MapModal(this).open();
+  }
+
   showControls() {
     const modern = this.settings.controls !== 'classic';
     const lines = this.ui.touch.enabled
       ? [
         modern ? '左のスティック：倒した方向へ移動（大きく倒すと走る）' : '左のスティック：上で前進、左右で旋回（ラジコン操作）',
         '［アクション］：調べる・開ける・取る・攻撃（状況に応じて変わる）',
-        '［持物］：持ち物　［≡］：メニュー',
+        '［持物］：持ち物　［≡］：メニュー（地図もここから）',
         '家具は、向かって歩き続けると押せる',
       ]
       : [
         modern ? '方向キー / WASD：画面の向きに合わせて移動' : '方向キー / WASD：↑前進 ↓後退 ←→旋回（ラジコン操作）',
         'Shift を押しながら移動：走る',
         'Space / Z / Enter：調べる・開ける・取る・攻撃（状況に応じて変わる）',
-        'I / Tab：持ち物　Esc：メニュー',
+        'I / Tab：持ち物　M：地図　Esc：メニュー',
         '家具は、向かって歩き続けると押せる',
       ];
     return this.say(lines.join('\n'));
@@ -911,6 +991,17 @@ export class Game {
     }).open();
   }
 
+  // Endings seen on this browser, with `kind` added.
+  seenEndings(kind) {
+    let seen = [];
+    try { seen = JSON.parse(localStorage.getItem(ENDINGS_KEY) || '[]'); } catch (e) { /* storage unavailable */ }
+    if (!Array.isArray(seen)) seen = [];
+    if (ENDINGS[kind] && ENDINGS[kind].n && !seen.includes(kind)) seen.push(kind);
+    seen = seen.filter((k) => ENDINGS[k] && ENDINGS[k].n);
+    try { localStorage.setItem(ENDINGS_KEY, JSON.stringify(seen)); } catch (e) { /* storage unavailable */ }
+    return seen;
+  }
+
   listSaves() {
     const out = [];
     for (let i = 1; i <= 3; i++) {
@@ -928,7 +1019,7 @@ export class Game {
       if (!s) return '――　空き　――';
       const t = Math.floor(s.stats.time);
       const room = ROOMS[s.room] ? ROOMS[s.room].name : s.room;
-      return `${room}　${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+      return `${(s.act || 1) >= 2 ? '第二幕　' : ''}${room}　${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
     };
     const items = saves.map((s, i) => ({
       label: `${i + 1}. ${fmt(s)}`,
@@ -981,7 +1072,8 @@ export class Game {
     for (const [id, r] of Object.entries(this.rooms)) rooms[id] = this.roomState(r);
     const p = this.player;
     return {
-      v: 1,
+      v: SAVE_VERSION,
+      act: this.act,
       room: this.room ? this.room.id : 'attic',
       x: +p.pos.x.toFixed(3), z: +p.pos.z.toFixed(3), rot: +p.rot.toFixed(3),
       hp: p.hp,
@@ -997,10 +1089,7 @@ export class Game {
 
   resetWorld() {
     for (const m of this.modals.slice()) m.close();
-    for (const r of Object.values(this.rooms)) {
-      r.scene.remove(this.player.root);
-      r.scene.traverse((o) => { if (o.geometry && !o.userData.shared) o.geometry.dispose(); });
-    }
+    for (const r of Object.values(this.rooms)) this.disposeRoom(r);
     this.rooms = {};
     this.room = null;
     this.timers = [];
@@ -1014,6 +1103,7 @@ export class Game {
   }
 
   loadState(d) {
+    d = migrateSave(d);
     this.resetWorld();
     this.flags = JSON.parse(JSON.stringify(d.flags));
     this.inv.restore(d.inv);
@@ -1062,8 +1152,8 @@ export class Game {
   // Debug: walk a serpentine path over every reachable spot of a room and
   // count how often the player ends up off-screen or hidden. legacy=true
   // reproduces the old behaviour (floor-zone shots only) for comparison.
-  debugSweep(roomId, legacy = false, step = 0.5) {
-    this.debugStart(roomId, null, { flags: { lampLit: true, lampOil: true } });
+  debugSweep(roomId, legacy = false, step = 0.5, flags = {}) {
+    this.debugStart(roomId, null, { flags: { lampLit: true, lampOil: true, ...flags } });
     const room = this.room;
     for (const m of room.monsters) { m.hidden = true; m.root.visible = false; }
     const [x0, z0, x1, z1] = room.camRect;
@@ -1205,7 +1295,9 @@ export class Game {
     if (room.def.enter) await this.run(() => room.def.enter(room, this, 'start'));
   }
 
-  async ending() {
+  // How the story ends: a key of ENDINGS (text.js).
+  async ending(kind) {
+    const E = ENDINGS[kind];
     this.lock();
     this.escape = null;
     this.ui.setTimer(null);
@@ -1213,16 +1305,19 @@ export class Game {
     this.unlock();
     this.state = 'ending';
     this.ui.hud.classList.add('hidden');
-    this.titleScene.show('dawn');
+    this.titleScene.show(E.scene);
     this.audio.setAmbience('dawn');
     this.audio.music('ending');
     await this.fade(0, 2.5);
     await this.waitReal(4);
     await this.fade(1, 1.5);
-    await new CurtainModal(this, EPILOGUE, { hold: 5 }).open();
+    await new CurtainModal(this, E.pages, { hold: 5 }).open();
+    const seen = this.seenEndings(kind);
     const t = Math.floor(this.stats.time);
     const time = `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-    await new CurtainModal(this, [`― THE END ―\n\nクリアタイム　${time}\n倒した怪物　${this.stats.kills}\n力尽きた回数　${this.stats.deaths}\nセーブ回数　${this.stats.saves}\n\nプレイしてくれてありがとう。`], { hold: 9 }).open();
+    const which = E.n ? `エンディング ${E.n}「${E.title}」\n\n` : '';
+    const count = E.n ? `\n見たエンディング　${seen.length} / 3` : '';
+    await new CurtainModal(this, [`― THE END ―\n\n${which}クリアタイム　${time}\n倒した怪物　${this.stats.kills}\n力尽きた回数　${this.stats.deaths}\nセーブ回数　${this.stats.saves}${count}\n\nプレイしてくれてありがとう。`], { hold: 9 }).open();
     this.ui.setCurtain(0);
     this.toTitle();
   }
