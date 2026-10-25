@@ -16,6 +16,7 @@ const TYPES = {
   ghoul: { build: CH.buildGhoul, hp: 32, dmg: 10, speed: 2.3, turn: 6, range: 1.0, sight: 12, cd: 0.6, radius: 0.3, voice: 'ghoul', stagger: 0 },
   // the drowned crew: slow, hard to put down, heavy-handed
   thrall: { build: (o) => CH.buildThrall({ seed: o.seed || 1 }), hp: 64, dmg: 15, speed: 0.62, turn: 2.2, range: 1.1, sight: 10, cd: 1.0, radius: 0.33, voice: 'thrall', stagger: 14 },
+  stoker: { build: CH.buildStoker, hp: 120, dmg: 22, speed: 0.78, turn: 2.0, range: 1.35, sight: 10, cd: 1.2, radius: 0.42, voice: 'cook', stagger: 16 },
 };
 
 export class Monster {
@@ -115,7 +116,7 @@ export class Monster {
         }
         if (!p.alive) { this.setState('feast'); break; }
         const facing = Math.abs(angleDiff(this.rot, toP));
-        if (dist < this.T.range + p.radius * 0.5 && this.attackCd <= 0 && facing < 0.7) {
+        if (dist < this.T.range + p.radius * 0.5 && this.attackCd <= 0 && facing < 0.7 && Math.abs(p.pos.y - this.pos.y) < 0.9) {
           this.startAttack(dist);
           break;
         }
@@ -203,7 +204,7 @@ export class Monster {
     const want = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z);
     const diff = Math.abs(angleDiff(this.rot, want));
     this.rot = approachAngle(this.rot, want, this.T.turn * dt);
-    if (dist < this.T.range * 0.8) return 0;
+    if (dist < this.T.range * 0.8 && Math.abs(this.player.pos.y - this.pos.y) < 0.9) return 0;
     return this.T.speed * (diff > 1.2 ? 0.15 : diff > 0.6 ? 0.5 : 1);
   }
 
@@ -221,7 +222,7 @@ export class Monster {
       const d = Math.hypot(dx, dz);
       const ang = Math.abs(angleDiff(this.rot, Math.atan2(dx, dz)));
       const reach = this.T.range + 0.4 + (this.state === 'leap' ? 0.4 : 0);
-      if (d < reach && ang < 1.1 && p.alive) {
+      if (d < reach && ang < 1.1 && p.alive && Math.abs(p.pos.y - this.pos.y) < 1.0) {
         if (p.damage(this.T.dmg, this.pos.x, this.pos.z)) this.game.audio.sfx('hitFlesh', { at: p.pos });
       } else this.game.audio.sfx('whoosh', { at: this.pos, rate: 0.6 });
     } else if (e === 'step') {
@@ -758,7 +759,83 @@ export class Vine extends Monster {
   }
 }
 
+// The drowned crew cannot abide the tower's flame: held up to them in the
+// storm lantern it drives them back, and burns them.
+export class Thrall extends Monster {
+  constructor(game, room, o) {
+    super(game, room, { ...o, type: 'thrall' });
+  }
+  special(dt, dist, toP) {
+    const p = this.player;
+    if (!p.holdsLantern || dist > 2.1) return false;
+    this.attackCd = Math.max(this.attackCd, 0.6);
+    const away = toP + Math.PI;
+    this.knock.set(Math.sin(away) * 1.6, Math.cos(away) * 1.6);
+    this.burnT = (this.burnT || 0) - dt;
+    if (this.burnT <= 0) {
+      this.burnT = 0.5;
+      this.hp -= 5;
+      this.game.audio.sfx('thrallHurt', { at: this.pos });
+      this.game.burst('steam', this.pos.x, 1.3, this.pos.z, { n: 4, size: 0.35 });
+      if (this.hp <= 0) { this.die(); return true; }
+      this.setState('hurt');
+      this.anim.play('hit', { restart: true, fade: 0.05 });
+    }
+    return true;
+  }
+}
+
+// The drowned stoker lies on the coal where he fell, until a valve turning
+// or a shot wakes him; then he gets up, shovel and all.
+export class Stoker extends Monster {
+  constructor(game, room, o) {
+    super(game, room, { ...o, type: 'stoker' });
+    if (this.state === 'dormant') this.anim.play('rise', { fade: 0, speed: 0 });
+  }
+  get hunting() { return super.hunting || this.state === 'rising'; }
+  wake() {
+    if (this.state !== 'dormant') return;
+    this.setState('rising');
+    this.anim.play('rise', { restart: true, fade: 0.05, speed: 0.8 });
+    this.game.audio.sfx('cookNotice', { at: this.pos });
+    if (this.onWake) this.onWake(this);
+  }
+  update(dt) {
+    if (this.hidden) return;
+    if (this.state === 'dormant') { this.anim.update(0); this.sync(); return; }
+    if (this.state === 'rising') {
+      this.stateT += dt;
+      this.anim.update(dt);
+      this.sync();
+      if (this.anim.finished) {
+        this.setState('chase');
+        this.attackCd = 0.6;
+      }
+      return;
+    }
+    super.update(dt);
+  }
+  damage(n, fromX, fromZ, knock = 1) {
+    if (this.state === 'dormant') this.wake();
+    if (this.state === 'rising') {
+      // hurt, but not to be knocked about while he is getting up
+      if (!this.alive) return false;
+      this.hp -= n;
+      if (this.hp <= 0) this.die();
+      else this.game.audio.sfx('cookHurt', { at: this.pos });
+      return true;
+    }
+    return super.damage(n, fromX, fromZ, knock);
+  }
+  restore(d) {
+    super.restore(d);
+    if (this.state === 'dormant') this.anim.play('rise', { restart: true, fade: 0, speed: 0 });
+  }
+}
+
 export function makeMonster(game, room, o) {
+  if (o.type === 'thrall') return new Thrall(game, room, o);
+  if (o.type === 'stoker') return new Stoker(game, room, o);
   if (o.type === 'vine') return new Vine(game, room, o);
   if (o.type === 'armor') return new Armor(game, room, o);
   if (o.type === 'preacher') return new Preacher(game, room, o);

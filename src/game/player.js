@@ -51,6 +51,19 @@ export class Player {
     this.lampLight = new THREE.PointLight(0xffa860, 0, 12, 2);
     this.lampLight.position.set(0, 0.22, 0);
     this.lamp.add(this.lampLight);
+    // the storm lantern of the second act, with the tower's flame in it
+    this.lantern = F.stormLantern();
+    this.lantern.scale.setScalar(1.15);
+    this.lantern.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    this.lantern.position.set(0, -0.36, 0.02);
+    this.lampHolder.add(this.lantern);
+    this.lanternFlame = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xfff0c0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.lanternFlame.scale.set(0.06, 0.1, 1);
+    this.lanternFlame.position.set(0, 0.12, 0);
+    this.lantern.add(this.lanternFlame);
+    this.lanternLight = new THREE.PointLight(0xffe0a0, 0, 13, 1.8);
+    this.lanternLight.position.set(0, 0.14, 0);
+    this.lantern.add(this.lanternLight);
     this.lampHolder.visible = false;
 
     // weapons in the right hand
@@ -101,7 +114,11 @@ export class Player {
 
   refreshHeld() {
     const g = this.game;
-    this.lampHolder.visible = g.inv.has('lamp') && !!g.flags.lampLit;
+    const oil = g.inv.has('lamp') && !!g.flags.lampLit;
+    this.holdsLantern = g.inv.has('lantern') && !!g.flags.lanternLit;
+    this.lampHolder.visible = oil || this.holdsLantern;
+    this.lamp.visible = oil;
+    this.lantern.visible = this.holdsLantern;
     for (const [id, w] of Object.entries(this.weaponObjs)) w.visible = g.inv.equipped === id;
 
   }
@@ -295,9 +312,13 @@ export class Player {
       this.lampHolder.quaternion.copy(q.invert()).multiply(this.root.quaternion);
       const t = g.time;
       const f = 1 + noise1(t * 7) * 0.12 + noise1(t * 23) * 0.05;
-      this.lampLight.intensity = (g.room && g.room.dark ? 16 : 9) * f * (g.lampBoost || 1);
+      this.lampLight.intensity = this.lamp.visible ? (g.room && g.room.dark ? 16 : 9) * f * (g.lampBoost || 1) : 0;
       this.lampFlame.scale.set(0.05 * (2 - f), 0.09 * f, 1);
-    } else this.lampLight.intensity = 0;
+      // the tower's flame hardly flickers at all
+      const f2 = 1 + noise1(t * 3) * 0.04;
+      this.lanternLight.intensity = this.lantern.visible ? 14 * f2 : 0;
+      this.lanternFlame.scale.set(0.06 * (2 - f2), 0.1 * f2, 1);
+    } else { this.lampLight.intensity = 0; this.lanternLight.intensity = 0; }
     this.muzzle.intensity = Math.max(0, this.muzzle.intensity - dt * 120);
   }
 

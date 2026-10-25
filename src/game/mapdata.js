@@ -5,7 +5,8 @@
 // Links are the doors and stairs between rooms, each end given in its own
 // room's coordinates; ends on different floors are drawn as arrows.
 export const FLOORS = [
-  { id: 'roof', name: '屋根裏' },
+  { id: 'roof', name: '最上階' },
+  { id: 'tower', name: '塔' },
   { id: '2f', name: '2階' },
   { id: '1f', name: '1階' },
   { id: 'b1', name: '地下' },
@@ -26,9 +27,16 @@ export const MAP_ROOMS = {
   conservatory: { floor: '1f', rect: [-5, -4.5, 5, 4.5], box: [-23.8, 7.2, -13.8, 16.2] },
   cellar: { floor: 'b1', rect: [-5, -3, 5, 3], box: [-5, -3, 5, 3] },
   cavern: { floor: 'b1', rect: [-7.2, -6.2, 6.8, 4.8], box: [6.4, -7, 20.4, 4] },
+  servants: { floor: '1f', rect: [-6, -3.5, 6, 3.5], box: [16.5, -5.9, 28.5, 1.1] },
+  boiler: { floor: 'b1', rect: [-4.5, -3.5, 4.5, 3.5], box: [23.6, 1.1, 32.6, 8.1] },
+  // the tower stands apart: its stair has a page of its own
+  tower: { floor: 'tower', rect: [-3, -3, 3, 3], box: [-3, -3, 3, 3] },
+  lamproom: { floor: 'roof', rect: [-3, -3, 3, 3], box: [10, -3, 16, 3] },
 };
 
-// door: the door's id where it can be locked (drawn red once found locked)
+// door: the door's id where it can be locked (drawn red once found locked,
+// until opened: unlocked with a key, or open(flags) says so); when(flags):
+// a way that is not there, or not known, until then
 export const MAP_LINKS = [
   { a: 'attic', ap: [4, 1.6], b: 'corridor', bp: [8, 0] },
   { a: 'corridor', ap: [-8, 0], b: 'hall', bp: [-6.1, -5] },
@@ -40,9 +48,14 @@ export const MAP_LINKS = [
   { a: 'hall', ap: [7, -0.8], b: 'kitchen', bp: [-4, 1.6] },
   { a: 'hall', ap: [7, -3.9], b: 'cellar', bp: [-5, 0.3], door: 'cellarDoor' },
   { a: 'cellar', ap: [5, 0.2], b: 'cavern', bp: [-7.2, 1] },
-  { a: 'dining', ap: [-5, -2], b: 'gallery', bp: [1.8, 0], door: 'galleryDoor' },
-  { a: 'gallery', ap: [0, -8], b: 'chapel', bp: [0, 6], door: 'chapelDoor' },
+  { a: 'dining', ap: [-5, -2], b: 'gallery', bp: [1.8, 0], door: 'galleryDoor', open: (f) => (f.act || 1) >= 2 },
+  { a: 'gallery', ap: [0, -8], b: 'chapel', bp: [0, 6], door: 'chapelDoor', open: (f) => !!f.canvasHung },
   { a: 'gallery', ap: [0, 8], b: 'conservatory', bp: [0, -4.5] },
+  { a: 'kitchen', ap: [4, 2.0], b: 'servants', bp: [-6, 2.0], door: 'backDoor', open: (f) => (f.act || 1) >= 2 },
+  { a: 'servants', ap: [2.8, 3.5], b: 'boiler', bp: [-2.8, -3.5], door: 'boilerDoor' },
+  { a: 'boiler', ap: [4.5, 1.6], b: 'tower', bp: [-3, 1.2], door: 'towerDoor', open: (f) => !!f.steamUp },
+  { a: 'tower', ap: [-2.45, -3], b: 'lamproom', bp: [-1.8, 3], door: 'lampDoor' },
+  { a: 'tower', ap: [-3, -1.5], b: 'bedroom', bp: [-3.5, 0.55], when: (f) => !!f.towerPassage },
 ];
 
 // Marks drawn on a room's wall that lead nowhere you can go.

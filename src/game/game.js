@@ -629,6 +629,7 @@ export class Game {
     let best = null;
     for (const m of this.room.monsters) {
       if (!m.alive || m.hidden || m.invulnerable || m.state === 'dormant' || m.state === 'down') continue;
+      if (Math.abs(m.pos.y - p.pos.y) > 1.2) continue;
       const d = Math.hypot(m.pos.x - p.pos.x, m.pos.z - p.pos.z) - m.radius;
       if (d > range || (best && d >= best.d)) continue;
       if (!this.room.nav.sight(p.pos.x, p.pos.z, m.pos.x, m.pos.z)) continue;
@@ -685,6 +686,8 @@ export class Game {
     let hit = false, ghost = false;
     for (const m of this.room.monsters) {
       if (!m.alive || m.hidden) continue;
+      // not one on the stair above or below him
+      if (Math.abs(m.pos.y - p.pos.y) > 1.0) continue;
       const dx = m.pos.x - p.pos.x, dz = m.pos.z - p.pos.z;
       const d = Math.hypot(dx, dz);
       if (d > def.range + m.radius) continue;

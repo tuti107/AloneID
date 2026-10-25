@@ -1158,6 +1158,38 @@ function silhouette() {
   return c;
 }
 
+// Something with too-long limbs, flat against a wall, climbing.
+function climber() {
+  const [c, g] = mk(48, 64);
+  g.clearRect(0, 0, 48, 64);
+  g.fillStyle = '#fff';
+  g.strokeStyle = '#fff';
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.beginPath();
+  g.ellipse(24, 31, 5.5, 11, 0.08, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.arc(23, 17, 4.5, 0, Math.PI * 2);
+  g.fill();
+  const limb = (pts, w) => {
+    g.lineWidth = w;
+    g.beginPath();
+    g.moveTo(...pts[0]);
+    for (const q of pts.slice(1)) g.lineTo(...q);
+    g.stroke();
+  };
+  // arms reaching up the stones, jointed wrong
+  limb([[20, 23], [8, 15], [5, 2]], 3);
+  limb([[28, 23], [41, 19], [44, 6]], 3);
+  for (const [x, y, dx] of [[5, 2, -1], [44, 6, 1]]) for (let k = -1; k <= 1; k++) limb([[x, y], [x + dx * 2 + k * 2, y - 3]], 1.2);
+  // legs drawn up and splayed
+  limb([[21, 40], [9, 43], [12, 58]], 3.4);
+  limb([[27, 40], [39, 45], [35, 60]], 3.4);
+  c.opts = { repeat: false };
+  return c;
+}
+
 // The armour's helm: a visor slit and breathing holes in iron; the glow map
 // is what burns behind the slit once it wakes.
 function helmFace(glow) {
@@ -1184,6 +1216,7 @@ function helmFace(glow) {
 const BUILDERS = {
   stainedGlass: () => stainedGlass(),
   silhouette: () => silhouette(),
+  climber: () => climber(),
   faceArmor: () => helmFace(false),
   faceArmorGlow: () => helmFace(true),
   woodFloor: () => woodPlanks({ seed: 11, base: 0x6b4426, dark: 0x2a170b }),

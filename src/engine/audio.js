@@ -497,6 +497,34 @@ export class Audio {
         amb.events.push({ every: [9, 18], fn: (tt, dd) => { for (let i = 0; i < 5; i++) this.noise(tt + i * 0.16 + rand(0, 0.05), 0.07, dd, { bp: rand(1600, 2600), q: 5, vol: 0.12 }); } });
         amb.events.push({ every: [14, 26], fn: (tt, dd) => this.voice(tt, 62, 50, 2.6, dd, { vol: 0.04, gargle: 8, formants: [[330, 5, 1], [650, 6, 0.5]] }) });
         break;
+      case 'boiler':
+        drone(41.2, 0.012, 'sawtooth', 90); bed(this.brownBuf, { filters: [['lowpass', 200]], vol: 0.22, swell: 0.06 });
+        amb.events.push({ every: [1.4, 3.8], fn: (tt, dd) => SFX.drip.call(this, tt, dd, 0.7, {}) });
+        amb.events.push({ every: [5, 11], fn: (tt, dd) => this.tone(tt, rand(900, 1400), 0.12, dd, { type: 'triangle', vol: 0.05 }) });
+        break;
+      case 'boilerHot':
+        // the furnace roaring, steam in every joint, the pipes complaining
+        drone(36.7, 0.02, 'sawtooth', 120); bed(this.brownBuf, { filters: [['lowpass', 240]], vol: 0.55, swell: 0.3 });
+        bed(this.noiseBuf, { filters: [['bandpass', 4200, 1.2]], vol: 0.035, swell: 0.4 });
+        amb.events.push({ every: [0.08, 0.45], fn: (tt, dd) => this.noise(tt, 0.02, dd, { bp: rand(1500, 4000), q: 2, vol: rand(0.04, 0.14) }) });
+        amb.events.push({ every: [4, 9], fn: (tt, dd) => SFX.pipeGroan.call(this, tt, dd) });
+        amb.events.push({ every: [3, 7], fn: (tt, dd) => this.tone(tt, rand(700, 1200), 0.1, dd, { type: 'triangle', vol: 0.07 }) });
+        break;
+      case 'tower':
+        // wind round the stone, the rain on the windows high up
+        rainOut(0.09); wind(0.2); wind(0.08);
+        amb.events.push({ every: [5, 12], fn: (tt, dd) => SFX.creak.call(this, tt, dd, rand(0.4, 0.7), { vol: 0.5 }) });
+        amb.events.push({ every: [16, 30], fn: (tt, dd) => this.voice(tt, 58, 46, 3, dd, { vol: 0.035, gargle: 8, formants: [[330, 5, 1], [650, 6, 0.5]] }) });
+        break;
+      case 'lamp':
+        rainOut(0.2); wind(0.22); bed(this.brownBuf, { filters: [['lowpass', 160]], vol: 0.3, swell: 0.09 });
+        break;
+      case 'lampLit':
+        // the great lamp burning: a steady hum under the storm
+        rainOut(0.18); wind(0.2); bed(this.brownBuf, { filters: [['lowpass', 160]], vol: 0.26, swell: 0.09 });
+        drone(82.4, 0.012, 'triangle', 420); drone(123.5, 0.006, 'triangle', 500);
+        amb.events.push({ every: [0.1, 0.5], fn: (tt, dd) => this.noise(tt, 0.02, dd, { bp: rand(1500, 4000), q: 2, vol: rand(0.03, 0.1) }) });
+        break;
       case 'dawn':
         wind(0.06); bed(this.brownBuf, { filters: [['lowpass', 400]], vol: 0.2 });
         amb.events.push({ every: [0.05, 0.3], fn: (tt, dd) => this.noise(tt, 0.02, dd, { bp: rand(1500, 4000), q: 2, vol: rand(0.05, 0.15) }) });
@@ -675,6 +703,10 @@ const SFX = {
   fireBurst(t, d) { this.noise(t, 1.6, d, { lp: 300, lp2: 3000, vol: 1.2, attack: 0.05 }); for (let i = 0; i < 25; i++) this.noise(t + rand(0.2, 2.5), 0.02, d, { bp: rand(1500, 4000), q: 2, vol: rand(0.2, 0.5) }); },
   hiss(t, d) { this.noise(t, 2.6, d, { bp: 5200, bp2: 2200, q: 0.6, vol: 1.3, attack: 0.02 }); this.noise(t, 1.4, d, { lp: 900, lp2: 200, vol: 0.7, attack: 0.01 }); },
   surge(t, d) { this.noise(t, 3.2, d, { buf: this.brownBuf, lp: 260, lp2: 1400, vol: 2.2, attack: 0.9 }); this.noise(t + 0.4, 2.4, d, { lp: 900, lp2: 3000, vol: 0.7, attack: 0.8 }); SFX.splash.call(this, t + 1.3, d); SFX.splash.call(this, t + 1.45, d); },
+  clank(t, d) { for (const [f, v, dur] of [[318, 0.45, 0.6], [851, 0.28, 0.4], [1693, 0.16, 0.28], [2462, 0.09, 0.2]]) this.tone(t, f, dur, d, { type: 'triangle', vol: v }); this.noise(t, 0.05, d, { bp: 2800, q: 1.4, vol: 0.55 }); },
+  pipeGroan(t, d) { this.tone(t, rand(46, 60), rand(1.6, 2.4), d, { type: 'sawtooth', f2: rand(68, 88), bp: rand(320, 520), q: 6, vol: 0.6, vib: 4, vibRate: rand(3, 6), attack: 0.35 }); SFX.creak.call(this, t + 0.5, d, 0.45, { vol: 0.7 }); },
+  valve(t, d) { SFX.creak.call(this, t, d, 1.7, { vol: 0.55 }); SFX.creak.call(this, t + 0.35, d, 1.5, { vol: 0.45 }); SFX.clank.call(this, t + 0.7, d); },
+  beacon(t, d) { SFX.fireBurst.call(this, t, d); for (const f of [55, 82.4, 110, 164.8]) this.tone(t + 0.4, f, 5, d, { type: 'triangle', vol: 0.28, attack: 1.4 }); this.noise(t + 0.2, 4, d, { lp: 600, lp2: 2400, vol: 0.4, attack: 1.0 }); },
   rumble(t, d) { this.noise(t, 3, d, { buf: this.brownBuf, lp: 140, vol: 1.6, attack: 0.4 }); for (let i = 0; i < 10; i++) this.noise(t + rand(0, 2.5), 0.05, d, { bp: rand(600, 2000), q: 2, vol: rand(0.1, 0.35) }); },
   monsterStep(t, d) { this.tone(t, 70, 0.12, d, { f2: 45, vol: 0.8 }); this.noise(t, 0.08, d, { lp: 500, vol: 0.7 }); },
   // monster voices

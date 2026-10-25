@@ -178,6 +178,19 @@ function toyBoat() {
   g.add(sail);
   return g;
 }
+function keyring() {
+  const g = G();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.006, 4, 14), M('iron'));
+  ring.rotation.x = Math.PI / 2;
+  g.add(ring);
+  for (let i = 0; i < 3; i++) {
+    const k = keyModel(i === 1 ? brass : M('iron'), 0.75)();
+    k.position.set(Math.cos(i * 2.1) * 0.05, -0.01, Math.sin(i * 2.1) * 0.05);
+    k.rotation.y = i * 2.1;
+    g.add(k);
+  }
+  return g;
+}
 function recordDisc() {
   const g = G();
   const rec = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.006, 20), [M('woodBlack'), M('recordLabel', { ts: [1, 1] }), M('woodBlack')]);
@@ -236,6 +249,17 @@ export const ITEMS = {
   musicBoxKey: { name: 'オルゴールの鍵', key: true, actions: ['use', 'examine'], desc: '蝶の形の小さなぜんまい鍵。泥にまみれている。\n子供の玩具のものだろうか。', model: boxKey },
   toyBoat: { name: 'おもちゃの帆船', key: true, actions: ['use', 'examine'], desc: '手のひらほどの木の帆船。赤い船体に、子供の字で「トマス号」と書いてある。', model: toyBoat },
   gardenKey: { name: '庭口の鍵', key: true, actions: ['use', 'examine'], desc: '温室から庭へ出る扉の、鉄の鍵。黒い草の汁で濡れている。', model: keyModel(M('iron'), 1.2) },
+  agnes: { name: 'アグネスの手紙', actions: ['read'], doc: 'agnes', model: letter },
+  morgan: { name: 'モーガンの帳簿', actions: ['read'], doc: 'morgan', model: book(0x4a2a1a) },
+  manual: { name: 'ボイラーの取扱説明書', actions: ['read'], doc: 'manual', model: paperModel(0xd8d0b8) },
+  harlow: { name: 'ハーロウの火の番の日誌', actions: ['read'], doc: 'harlow', model: book(0x1a1a2a) },
+  coldKey: { name: 'ハーロウの部屋の鍵', key: true, actions: ['use', 'examine'], desc: '「ハーロウ」と書いた札の付いた、小さな真鍮の鍵。肉の脂でぬめっている。', model: keyModel(brass, 0.9) },
+  keyring: { name: 'ハーロウの鍵束', key: true, actions: ['use', 'examine'], desc: '執事ハーロウの鍵束。「ボイラー室」と「灯室」の札が下がっている。', model: keyring },
+  lantern: {
+    name: '嵐のランタン', key: true, actions: ['use', 'examine'],
+    desc: (g) => (g.flags.lanternLit ? '塔の消えない火を宿した、船乗りの嵐のランタン。\n炎は、雨にも風にも揺らがない。潮の下僕は、この火を恐れる。' : '船乗りが使う、鉄枠の嵐のランタン。中は空っぽで、油も火もない。'),
+    model: () => F.stormLantern(),
+  },
   canvas: { name: 'ジョナの肖像のカンバス', key: true, actions: ['use', 'examine'], desc: '丸めた古いカンバス。広げると、厳めしい老人が描かれている。\n裏に「Ｊ・Ａ　一八三五年」とある。', model: rolledCanvas },
   brassKey: { name: '真鍮の小さな鍵', key: true, actions: ['use', 'examine'], desc: '小さな真鍮の鍵。机の引き出しのものだろうか。', model: keyModel(brass, 0.8) },
   bedroomKey: { name: '寝室の鍵', key: true, actions: ['use', 'examine'], desc: '「主寝室」と刻まれた鉄の鍵。', model: keyModel(M('iron'), 1.1) },

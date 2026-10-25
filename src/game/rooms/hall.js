@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import * as F from '../furniture.js';
 import { M, C } from '../mats.js';
+import { tex } from '../../engine/textures.js';
 import { loft } from '../body.js';
 import { Animator, blobShadow } from '../rig.js';
 import { buildClara, buildArmor } from '../characters.js';
@@ -213,7 +214,12 @@ export default {
 
     if (act2) {
       r.hemi(0x5a74a0, 0x182024, 3.4);
-      flood(r);
+      // once the tower burns again the sea draws back out of the hall
+      if (!g.flags.tideReceded) flood(r);
+      else {
+        const wet = new THREE.MeshPhongMaterial({ map: tex('blood'), color: 0x3a5a54, specular: 0x5a7a74, shininess: 110, transparent: true, opacity: 0.6, alphaTest: 0.2, depthWrite: false });
+        for (const [x, z, w, d, ry] of [[-1.6, 1.2, 2.4, 1.6, 0.4], [2.4, -1.8, 1.8, 1.2, -0.3], [0.6, 3.6, 1.4, 1.0, 1.1]]) r.decal(wet, x, z, w, d, ry, 0.004);
+      }
       // what she dropped as it took her
       if (!g.flags['taken:claraNote']) r.pickup('claraNote', 0.3, 0.02, 2.95, { label: '手帳', ry: 0.6, r: 0.4 });
     } else r.hemi(0x6070a0, 0x2a1810, 2.4);

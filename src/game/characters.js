@@ -440,6 +440,62 @@ export function buildCook() {
   return { parts, clips };
 }
 
+// The stoker, drowned at his boiler: a big man black with coal dust over
+// grey dead skin, braces over a filthy undershirt, a leather apron, and the
+// coal shovel he swings over his head.
+export function buildStoker() {
+  const parts = buildHumanoid({
+    hipY: 0.94, pelvis: [0.44, 0.16, 0.32], waist: [0.54, 0.38], chest: [0.56, 0.34], torsoLen: 0.6,
+    shoulderX: 0.26, armW: 0.14, handW: 0.105, legW: 0.19, hipX: 0.13,
+    head: [0.23, 0.25, 0.24], neckR: 0.066, headShape: { jaw: 1.25 },
+    colors: { torso: 0x5a564c, arms: 0x5a6a62, legs: 0x2a2a30, pelvis: 0x2a2a30, skin: 0x5a6a62, shoes: 0x0c0c0c, hair: 0x1a1a1a },
+    face: 'faceCook', faceGlow: 'faceCookGlow',
+    hair: { front: 0.85, side: 0.2, back: -0.2, thick: 0.006 },
+    extras(p, spec) {
+      const j = p.joints, T = p.surf.torso, L = spec.torsoLen;
+      const leather = S(0x3a2614, true), soot = S(0x141210);
+      // braces
+      for (const sx of [-1, 1]) plate(j.spine, S(0x2a1a10), T, [[0.0, sx * 0.4 - 0.06, sx * 0.4 + 0.06], [L, sx * 0.5 - 0.06, sx * 0.5 + 0.06]].map(([y, a0, a1]) => [y, Math.min(a0, a1), Math.max(a0, a1)]), 2, 0.008);
+      // the leather apron, scorched
+      plate(j.spine, leather, T, [[-0.02, -0.75, 0.75], [L * 0.5, -0.6, 0.6], [L * 0.7, -0.45, 0.45]], 6, 0.012);
+      const front = [[0.06, 0.28, 0.21, 0, 0.012], [-0.5, 0.29, 0.23, 0, 0.03]];
+      plate(j.hips, leather, front, [[0.05, -0.85, 0.85], [-0.48, -0.8, 0.8]], 6, 0);
+      // coal black up the forearms and over the face
+      for (const side of ['l', 'r']) band(j[side + 'Elbow'], soot, p.surf.foreArm, -spec.foreArm * 0.2, -spec.foreArm * 0.95, 0.004, 8);
+      plate(j.spine, soot, T, [[L * 0.55, -0.3, 0.3], [L * 0.8, -0.5, 0.5]], 4, 0.004);
+      // the coal shovel
+      const sh = new THREE.Group();
+      p.rGrip.add(sh);
+      box(sh, C(0x3a2a1a), 0.035, 0.035, 0.95, 0, 0, 0.32);
+      box(sh, C(0x2a2a2a, { phong: true, shininess: 40 }), 0.26, 0.03, 0.3, 0, 0.0, 0.88);
+      box(sh, C(0x2a2a2a), 0.26, 0.08, 0.02, 0, 0.04, 1.02);
+      p.weapon = sh;
+    },
+  });
+  const clips = zombieClips({ hunch: 0.15 });
+  // the shovel comes down two-handed
+  clips.attack = {
+    dur: 1.4,
+    events: [{ t: 0.8, name: 'hit' }],
+    fn(t, p) {
+      const e = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+      const a = e(t / 0.6), b = e((t - 0.65) / 0.2), c = e((t - 1.0) / 0.4);
+      const up = a * (1 - b), down = b * (1 - c);
+      setJ(p, 'rShoulder', -3.0 * up - 1.1 * down - 0.2, 0, -0.1);
+      setJ(p, 'lShoulder', -2.8 * up - 1.0 * down - 0.2, 0, 0.1);
+      setJ(p, 'rElbow', -1.0 * up - 0.2);
+      setJ(p, 'lElbow', -1.0 * up - 0.2);
+      setJ(p, 'spine', 0.1 - 0.25 * up + 0.5 * down, 0, 0);
+      setJ(p, 'lHip', -0.4 * down);
+      setJ(p, 'lKnee', 0.4 * down + 0.1);
+      setJ(p, 'rKnee', 0.1);
+      p[ROOT + 1] = -0.07 * down;
+      p[ROOT + 2] = 0.12 * down;
+    },
+  };
+  return { parts, clips };
+}
+
 // ------------------------------------------------------------------ ghoul
 export function buildGhoul() {
   const skin = 0x6e6e60;

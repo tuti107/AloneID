@@ -542,7 +542,7 @@ export class Room {
     fb(g, frameM, w + 0.36, 0.14, 0.07, 0, h + 0.07, 0.03);
     // dark void behind the door
     const voidM = C(0x050403);
-    fb(g, voidM, w, h, 0.02, 0, h / 2, -0.19);
+    const voidMesh = fb(g, voidM, w, h, 0.02, 0, h / 2, -0.19);
     const reveal = mat(o.wallMat || 'plaster');
     fb(g, reveal, 0.02, h - 0.02, 0.2, -w / 2 + 0.01, (h - 0.02) / 2, -0.1);
     fb(g, reveal, 0.02, h - 0.02, 0.2, w / 2 - 0.01, (h - 0.02) / 2, -0.1);
@@ -597,7 +597,7 @@ export class Room {
     const col = this.collider(x - s * 0.1, z - c * 0.1, w / 2 + 0.05, 0.2, ry, { ctag: 'door' });
     const doorId = o.id || `door:${this.id}:${o.to || 'x'}:${x.toFixed(1)},${z.toFixed(1)}`;
     const door = {
-      kind: 'door', group: g, leaves, collider: col, x, z, ry, w, h, ...o, id: doorId,
+      kind: 'door', group: g, leaves, collider: col, x, z, ry, w, h, ...o, id: doorId, voidMesh,
       open: 0,
       setOpen(v) {
         this.open = v;

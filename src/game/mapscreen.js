@@ -116,12 +116,13 @@ export class MapModal extends Modal {
     // passages first, under the rooms
     for (const L of MAP_LINKS) {
       if (L.act && (g.flags.act || 1) < L.act) continue;
+      if (L.when && !L.when(g.flags)) continue;
       for (const [a, ap, b, bp] of [[L.a, L.ap, L.b, L.bp], [L.b, L.bp, L.a, L.ap]]) {
         if (!onFloor(a) || !this.visited(a)) continue;
         const pa = toBox(a, ...ap);
         const da = outward(a, pa);
         // red on the side the locked door is on, until it is opened
-        const locked = a === L.a && L.door && g.flags['locked:' + L.door] && !g.flags['unlocked:' + L.door];
+        const locked = a === L.a && L.door && g.flags['locked:' + L.door] && !g.flags['unlocked:' + L.door] && !(L.open && L.open(g.flags));
         doorTicks.push({ p: pa, d: da, locked });
         if (onFloor(b) && this.visited(b)) {
           if (a > b) continue; // draw a passage once
@@ -151,7 +152,8 @@ export class MapModal extends Modal {
           c.beginPath(); c.moveTo(...A); c.lineTo(...E); c.stroke();
           c.setLineDash([]);
           const other = !onFloor(b);
-          const up = other && FLOORS.findIndex((f) => f.id === MAP_ROOMS[b].floor) < this.fi;
+          const level = (id) => FLOORS.findIndex((f) => f.id === id);
+          const up = other && level(MAP_ROOMS[b].floor) < level(floor.id);
           const text = other ? `${up ? '▲' : '▼'}${floorName(b)}` : '？';
           labels.push({ x: E[0] + da[0] * 2 * px, y: E[1] + da[1] * 2 * px, d: da, text, color: other ? GOLD : DIM });
         }

@@ -748,6 +748,27 @@ export function oilLamp({ lit = false } = {}) {
   return g;
 }
 
+// A ship's storm lantern: iron cage, thick glass, a ring to carry it by.
+export function stormLantern() {
+  const g = G();
+  const iron = M('iron', { phong: true, shininess: 30 });
+  cy(g, iron, 0.07, 0.08, 0.035, 0, 0, 0, 8);
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.16, 10, 1, true), C(0xd0e0d8, { transparent: true, opacity: 0.3, flat: false, side: THREE.DoubleSide }));
+  glass.position.y = 0.115;
+  g.add(glass);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    bx(g, iron, 0.012, 0.18, 0.012, Math.cos(a) * 0.066, 0.035, Math.sin(a) * 0.066);
+  }
+  cy(g, iron, 0.06, 0.075, 0.05, 0, 0.2, 0, 8);
+  cy(g, iron, 0.02, 0.04, 0.035, 0, 0.25, 0, 6);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.007, 4, 12), iron);
+  ring.position.y = 0.32;
+  g.add(ring);
+  g.userData.flames = [[0, 0.12, 0]];
+  return g;
+}
+
 // ------------------------------------------------------------------ decor
 export function painting({ w = 0.6, h = 0.75, art = 'portraitMan', frame = 'gold' } = {}) {
   const g = G();

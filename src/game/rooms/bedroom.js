@@ -50,9 +50,19 @@ export default {
     r.place(wardrobe, -3.17, 0.55, Math.PI / 2, { collide: true, dyn: true });
     r.wardrobe = wardrobe;
     if (g.flags.silasOut) wardrobe.userData.setOpen(1);
+    // its back opens on a passage to the tower, from the tower's side
+    r.entry('fromTower', -2.45, 0.55, Math.PI / 2);
+    if (g.flags.towerPassage) r.box('#050403', 0.012, 1.55, 0.95, -2.866, 0.28, 0.55, { cast: false });
     r.interact({
-      id: 'wardrobe', x: -2.55, z: 0.55, r: 0.6, label: '洋服箪笥',
+      id: 'wardrobe', x: -2.55, z: 0.55, r: 0.6, label: (gg) => (gg.flags.towerPassage ? '隠し通路' : '洋服箪笥'),
+      verb: (gg) => (gg.flags.towerPassage ? '入る' : '調べる'),
       use: async (gg) => {
+        if (gg.flags.towerPassage) {
+          const c = await gg.ask('洋服箪笥の奥の隠し通路を抜けて、塔へ行きますか？', ['行く', 'やめる']);
+          if (c === 0) await gg.goTo('tower', 'fromBedroom', { fadeOut: 0.5 });
+          return;
+        }
+        if (gg.act >= 2) { await gg.say('扉の壊れた洋服箪笥。奥の板の隙間から、冷たい風が吹き込んでくる。\n……板は、向こう側から留められているようだ。'); return; }
         if (gg.flags.silasOut) { await gg.say('扉の壊れた洋服箪笥。中には、すえた臭いだけが残っている。'); return; }
         gg.audio.sfx('knock', { at: { x: -3.1, y: 1, z: 0.55 } });
         await gg.say('洋服箪笥の中から……コツン、と音がした。\n扉は、内側から押さえつけられたように開かない。');
