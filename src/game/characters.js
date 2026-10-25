@@ -4,8 +4,11 @@
 import * as THREE from 'three';
 import { frustum } from '../engine/geom.js';
 import { C } from './mats.js';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, setJ, ROOT } from './rig.js';
-import { loft, shell, ringAt, surfacePoint } from './body.js';
+import { loft, shell, ringAt, surfacePoint, headGeo } from './body.js';
+import { tex } from '../engine/textures.js';
+import { rng } from '../engine/util.js';
 
 const TAU = Math.PI * 2;
 
@@ -344,6 +347,60 @@ export function buildGhost({ dress = false, color = 0x8098c0 } = {}) {
   return { parts, clips: ghostClips() };
 }
 
+// ------------------------------------------------------------------ drowned arm
+// A drowned arm with a hand of jointed fingers: curl them by rotating the
+// segments about x (the palm faces +z). Rises from the bathtub, and reaches
+// out of the thing in the pool.
+export function buildDrownedArm({ skinColor = 0x93a294 } = {}) {
+  const skin = C(skinColor, { phong: true, flat: false, shininess: 70, specular: 0x4a5a4a });
+  const nailM = C(0x231f1a, { flat: false });
+  const root = new THREE.Group();
+  const mesh = (geo, m, parent) => {
+    const me = new THREE.Mesh(geo, m);
+    me.castShadow = true;
+    parent.add(me);
+    return me;
+  };
+  // forearm from under the water up to the wrist: swollen, then bony
+  mesh(loft([[-0.03, 0, 0], [0, 0.04, 0.036], [0.16, 0.042, 0.037], [0.34, 0.032, 0.025, 0.003], [0.46, 0.027, 0.019], [0.475, 0, 0]], 8), skin, root);
+  const wrist = new THREE.Group();
+  wrist.position.y = 0.46;
+  root.add(wrist);
+  mesh(loft([[-0.014, 0.026, 0.019], [0.024, 0.037, 0.016, 0, 0.002], [0.08, 0.042, 0.015, 0, 0.004], [0.1, 0.039, 0.014, 0, 0.004]], 8), skin, wrist);
+  const fingers = [];
+  const segs = [[0.05, 0.035, 0.026], [0.056, 0.04, 0.028], [0.054, 0.037, 0.026], [0.042, 0.03, 0.022]];
+  [-0.028, -0.0095, 0.0095, 0.028].forEach((x, i) => {
+    let parent = wrist, y = 0.098;
+    const chain = [];
+    segs[i].forEach((len, k) => {
+      const j = new THREE.Group();
+      j.position.set(k === 0 ? x : 0, y, k === 0 ? 0.003 : 0);
+      if (k === 0) j.rotation.z = -x * 2.4; // splayed
+      parent.add(j);
+      const r0 = 0.01 - k * 0.0014;
+      mesh(loft([[-0.004, r0, r0 * 0.85], [len * 0.5, r0 * 0.94, r0 * 0.82], [len, r0 * 0.8, r0 * 0.72], [len + 0.004, 0, 0]], 6), skin, j);
+      if (k === 2) mesh(loft([[len * 0.3, 0.006, 0.0018], [len + 0.016, 0.004, 0.0014], [len + 0.02, 0, 0]], 4), nailM, j).position.z = r0 * 0.6;
+      chain.push(j);
+      parent = j;
+      y = len;
+    });
+    fingers.push(chain);
+  });
+  const thumb = [];
+  let tp = wrist, ty = 0.024;
+  [0.042, 0.035].forEach((len, k) => {
+    const j = new THREE.Group();
+    j.position.set(k === 0 ? 0.035 : 0, ty, k === 0 ? 0.012 : 0);
+    if (k === 0) j.rotation.set(0.5, 0, -0.7);
+    tp.add(j);
+    mesh(loft([[-0.004, 0.012, 0.011], [len, 0.0095, 0.0085], [len + 0.005, 0, 0]], 6), skin, j);
+    thumb.push(j);
+    tp = j;
+    ty = len;
+  });
+  return { root, wrist, fingers, thumb };
+}
+
 // ------------------------------------------------------------------ crawler
 // A low, many-legged thing for the cellar. Its own tiny rig.
 export function buildCrawler() {
@@ -394,65 +451,209 @@ export function buildCrawler() {
 }
 
 // ------------------------------------------------------------------ the thing in the pool
+// A heaving mass of dark wet flesh: lumps and folds, pale veins, bony
+// spines, a slit maw of needle teeth that opens on a red glow, a cluster of
+// yellow slit-pupilled eyes, and the drowned of Ashcombe still in it: faces
+// sunk into the flesh, arms reaching out of it.
 export function buildHorror() {
   const root = new THREE.Group();
-  const flesh = C(0x2a3a30, { phong: true, shininess: 70, specular: 0x557766 });
-  const dark = C(0x101810, { phong: true, shininess: 40 });
   const core = new THREE.Group();
   root.add(core);
-  const mass = new THREE.Mesh(new THREE.IcosahedronGeometry(1.0, 1), flesh);
-  mass.scale.set(1.2, 1.5, 1.0);
-  mass.position.y = 1.2;
+  const rand = rng(666);
+  const lumps = [];
+  const lump = (n, a0, a1, w0, w1) => {
+    for (let i = 0; i < n; i++) {
+      const v = new THREE.Vector3(rand() * 2 - 1, rand() * 2 - 1, rand() * 2 - 1).normalize();
+      lumps.push({ v, a: a0 + rand() * (a1 - a0), w: w0 + rand() * (w1 - w0) });
+    }
+  };
+  lump(7, 0.2, 0.45, 0.12, 0.3); // great swollen lobes
+  lump(30, 0.06, 0.18, 0.025, 0.09); // tumours
+  lump(60, 0.02, 0.06, 0.006, 0.02); // pustules and knots
+  const C0 = new THREE.Vector3(0, 1.3, 0); // centre of the mass
+  const SC = new THREE.Vector3(1.15, 1.6, 1.0);
+  const MAW = new THREE.Vector3(0, 0.32, 1).normalize();
+  const radius = (d) => {
+    let r = 1;
+    for (const l of lumps) r += l.a * Math.exp(-(1 - d.dot(l.v)) / l.w);
+    r += 0.04 * Math.sin(d.x * 9 + d.y * 4) * Math.sin(d.z * 8 - d.y * 6);
+    r += 0.018 * Math.sin(d.x * 23 + d.z * 17) * Math.sin(d.y * 29 - d.x * 11); // wrinkles
+    // a groove down the front where the maw splits the body
+    const m = 1 - d.dot(MAW);
+    if (m < 0.35 && d.z > 0) r -= 0.12 * Math.exp(-(d.x * d.x) / 0.004) * (1 - m / 0.35);
+    return r;
+  };
+  // surface point for a direction from the centre: hunched forward, leaning left
+  const place = (d, r = radius(d)) => {
+    const p = d.clone().multiplyScalar(r).multiply(SC);
+    if (p.y > 0) { p.z += 0.2 * p.y * p.y; p.x -= 0.06 * p.y * p.y; }
+    return p.add(C0);
+  };
+  const ico = new THREE.IcosahedronGeometry(1, 22); // ~5000 vertices: enough for tumours and wrinkles
+  ico.deleteAttribute('normal');
+  ico.deleteAttribute('uv');
+  const geo = mergeVertices(ico);
+  const pos = geo.attributes.position;
+  const col = new Float32Array(pos.count * 3);
+  const base = new THREE.Color(0x3e2a2c), dark = new THREE.Color(0x0a0506), vein = new THREE.Color(0x8a90a0), raw = new THREE.Color(0x7a1c16);
+  const c = new THREE.Color(), d = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    d.fromBufferAttribute(pos, i).normalize();
+    const r = radius(d);
+    const p = place(d, r);
+    pos.setXYZ(i, p.x, p.y, p.z);
+    c.copy(dark).lerp(base, Math.min(1, Math.max(0, 0.35 + (r - 1) * 3)));
+    const v = Math.abs(Math.sin(p.x * 7 + Math.sin(p.y * 5) * 1.6 + p.z * 3));
+    if (v < 0.07) c.lerp(vein, 0.7 * (1 - v / 0.07));
+    const m = 1 - d.dot(MAW);
+    if (m < 0.25) c.lerp(raw, 0.8 * (1 - m / 0.25));
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  const fleshM = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 60, specular: 0x6a6070 });
+  const mass = new THREE.Mesh(geo, fleshM);
+  mass.castShadow = true;
   core.add(mass);
-  const mass2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 1), dark);
-  mass2.position.set(0.3, 2.3, -0.1);
-  core.add(mass2);
-  // eyes
+  const add = (g, m, parent = core) => { const me = new THREE.Mesh(g, m); me.castShadow = true; parent.add(me); return me; };
+  // orient a group so its +z points along the surface normal at `at`
+  const onSurface = (at, outward, depth = 0) => {
+    const g = new THREE.Group();
+    g.position.copy(at).addScaledVector(outward, -depth);
+    g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
+    core.add(g);
+    return g;
+  };
+  const normalAt = (dir) => {
+    const e = 0.04;
+    const u = Math.abs(dir.y) < 0.95 ? new THREE.Vector3(0, 1, 0).cross(dir).normalize() : new THREE.Vector3(1, 0, 0);
+    const w = dir.clone().cross(u).normalize();
+    const a = place(dir);
+    const t1 = place(dir.clone().addScaledVector(u, e).normalize()).sub(a);
+    const t2 = place(dir.clone().addScaledVector(w, e).normalize()).sub(a);
+    const nrm = t1.cross(t2).normalize();
+    return nrm.dot(dir) < 0 ? nrm.negate() : nrm;
+  };
+
+  // the maw: a slit down the front, red within, lined with needle teeth
+  const mawAt = place(MAW);
+  const maw = onSurface(mawAt, normalAt(MAW), 0.02);
+  const throat = add(new THREE.SphereGeometry(1, 12, 10), new THREE.MeshLambertMaterial({ color: 0x1a0204, emissive: 0x7a0a08 }), maw);
+  throat.scale.set(0.12, 0.66, 0.24);
+  throat.position.z = -0.1;
+  // swollen lips along the split
+  const lipM = new THREE.MeshPhongMaterial({ color: 0x4a1418, shininess: 70, specular: 0x6a4040 });
+  const bone = C(0xbcae8a, { phong: true, flat: false, shininess: 50 });
+  const rows = [];
+  for (const sx of [-1, 1]) {
+    const row = new THREE.Group();
+    maw.add(row);
+    const lip = add(loft([[-0.66, 0, 0], [-0.55, 0.05, 0.05], [0, 0.07, 0.07], [0.55, 0.05, 0.05], [0.66, 0, 0]], 6), lipM, row);
+    lip.position.set(sx * 0.03, 0, 0.04);
+    for (let i = 0; i < 15; i++) {
+      const y = -0.56 + i * 0.08;
+      const len = 0.12 + 0.14 * Math.sin((i / 14) * Math.PI) + rand() * 0.05;
+      const tooth = add(new THREE.ConeGeometry(0.024, len, 4), bone, row);
+      tooth.position.set(-sx * len * 0.35, y, 0.06);
+      // jutting forward out of the lips and across the gap
+      tooth.rotation.z = sx * (Math.PI / 2 + 0.15) + (rand() - 0.5) * 0.35;
+      tooth.rotation.x = -0.35 + (rand() - 0.5) * 0.3;
+    }
+    row.userData.side = sx;
+    rows.push(row);
+  }
+  const mawLight = new THREE.PointLight(0xff2a10, 2.5, 2.6, 2);
+  mawLight.position.set(0, 0, 0.3);
+  maw.add(mawLight);
+
+  // eyes: yellow, slit-pupilled, sunk in dark sockets, all sizes
+  const sclera = new THREE.MeshPhongMaterial({ color: 0xc0aa44, emissive: 0x2a2004, shininess: 110, specular: 0x666644 });
+  const irisM = new THREE.MeshPhongMaterial({ color: 0x8a2a06, emissive: 0x200400, shininess: 90 });
+  const black = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  const socketM = new THREE.MeshPhongMaterial({ color: 0x0a0c0a, shininess: 40 });
   const eyes = [];
-  const eyeData = [[0, 1.6, 0.9, 0.22], [-0.45, 1.25, 0.8, 0.12], [0.5, 1.9, 0.7, 0.1], [0.25, 2.5, 0.45, 0.09], [-0.3, 2.0, 0.75, 0.08]];
-  for (const [x, y, z, r] of eyeData) {
-    const ew = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), C(0xd8d8b0, { basic: true }));
-    ew.position.set(x, y, z);
-    core.add(ew);
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(r * 0.45, 6, 4), C(0x000000, { basic: true }));
-    pupil.position.set(0, 0, r * 0.75);
-    ew.add(pupil);
-    eyes.push(ew);
+  const EYES = [[-0.42, 0.62, 0.66, 0.19], [0.38, 0.56, 0.72, 0.14], [0.1, 0.86, 0.5, 0.12], [-0.7, 0.3, 0.64, 0.08], [0.72, 0.18, 0.66, 0.09],
+    [-0.28, 0.95, 0.15, 0.07], [0.5, 0.88, 0.2, 0.06], [-0.85, 0.55, 0.2, 0.06], [0.88, 0.5, 0.25, 0.07], [0.02, 0.05, 1.0, 0.06], [-0.2, 0.42, 0.88, 0.05]];
+  for (const [x, y, z, r] of EYES) {
+    const dir = new THREE.Vector3(x, y, z).normalize();
+    const n = normalAt(dir);
+    const socket = onSurface(place(dir), n, r * 0.45);
+    const ring = add(new THREE.TorusGeometry(r * 1.02, r * 0.32, 6, 14), socketM, socket);
+    ring.position.z = r * 0.25;
+    const ball = new THREE.Group();
+    socket.add(ball);
+    add(new THREE.SphereGeometry(r, 12, 10), sclera, ball);
+    const iris = add(new THREE.SphereGeometry(r * 0.62, 10, 8), irisM, ball);
+    iris.scale.z = 0.35;
+    iris.position.z = r * 0.82;
+    const pupil = add(new THREE.BoxGeometry(r * 0.16, r * 1.05, r * 0.12), black, ball);
+    pupil.position.z = r * 0.98;
+    ball.userData.blinkT = rand() * 6;
+    eyes.push(ball);
   }
-  // mouth
-  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.14, 0.1), C(0x300808, { basic: true }));
-  mouth.position.set(0, 1.0, 1.02);
-  core.add(mouth);
-  for (let i = -3; i <= 3; i++) {
-    const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 3), C(0xd8d0b0));
-    tooth.position.set(i * 0.09, 1.1, 1.05);
-    tooth.rotation.x = Math.PI;
-    core.add(tooth);
+
+  // the drowned, sunk into it: faces and reaching arms
+  const faceM = new THREE.MeshLambertMaterial({ map: tex('faceAgony'), color: 0xc8b4b0 });
+  const pale = C(0x7e7270, { flat: false });
+  const faces = [];
+  for (const [x, y, z, tilt] of [[-0.72, -0.15, 0.68, 0.5], [0.66, -0.3, 0.72, -0.4], [0.32, 0.05, 0.94, 0.2], [-0.35, -0.45, 0.86, -0.3]]) {
+    const dir = new THREE.Vector3(x, y, z).normalize();
+    const g = onSurface(place(dir), normalAt(dir), 0.075);
+    const h = add(headGeo({ w: 0.2, h: 0.24, d: 0.21, nose: 0.8 }), [faceM, pale, pale], g);
+    h.rotation.set(-0.15, 0, tilt);
+    faces.push(g);
   }
-  // tentacles: chains of segments
+  const arms = [];
+  for (const [x, y, z, roll] of [[-0.9, -0.35, 0.4, 0.4], [0.92, -0.2, 0.35, -0.5], [-0.55, -0.55, 0.78, 0.9], [0.6, -0.6, 0.7, -0.7], [-0.1, -0.7, 0.95, 0.1]]) {
+    const dir = new THREE.Vector3(x, y, z).normalize();
+    const g = onSurface(place(dir), normalAt(dir), 0.06);
+    const a = buildDrownedArm({ skinColor: 0x8a9488 });
+    a.root.scale.setScalar(1.4);
+    // the arm's own +y points out of the flesh, reaching up and forward
+    a.root.rotation.set(Math.PI / 2 - 0.5, 0, roll);
+    g.add(a.root);
+    a.phase = rand() * 10;
+    a.baseRot = a.root.rotation.clone();
+    arms.push(a);
+  }
+
+  // spines along the back and crown
+  const spineM = C(0x2a241c, { phong: true, flat: false, shininess: 40 });
+  for (let i = 0; i < 9; i++) {
+    const a = -1.2 + i * 0.3 + (rand() - 0.5) * 0.15;
+    const dir = new THREE.Vector3(Math.sin(a) * 0.6, 0.75 + rand() * 0.2, -0.55 - rand() * 0.2).normalize();
+    const g = onSurface(place(dir), normalAt(dir), 0.05);
+    const len = 0.35 + rand() * 0.55;
+    const sp = add(new THREE.ConeGeometry(0.05 + len * 0.06, len, 6), spineM, g);
+    sp.rotation.x = Math.PI / 2 - 0.5;
+    sp.position.z = len * 0.4;
+  }
+
+  // tentacles: chains of tapered, wet segments ending in bone hooks
+  const tentM = new THREE.MeshPhongMaterial({ color: 0x32222a, shininess: 60, specular: 0x6a6070 });
   const tentacles = [];
-  const nT = 7;
+  const nT = 9, n = 9;
   for (let i = 0; i < nT; i++) {
-    const a = (i / nT) * Math.PI * 2 + 0.3;
-    const base = new THREE.Group();
-    base.position.set(Math.cos(a) * 0.9, 0.6 + (i % 2) * 0.5, Math.sin(a) * 0.7);
-    base.rotation.y = -a + Math.PI / 2;
-    core.add(base);
+    const a = (i / nT) * Math.PI * 2 + 0.2;
+    const tb = new THREE.Group();
+    tb.position.set(Math.cos(a) * 1.0, 0.45 + (i % 3) * 0.3, Math.sin(a) * 0.85);
+    tb.rotation.y = -a + Math.PI / 2;
+    core.add(tb);
     const segs = [];
-    let parent = base;
-    const n = 8;
+    let parent = tb;
     for (let k = 0; k < n; k++) {
       const s = new THREE.Group();
-      s.position.y = k === 0 ? 0 : 0.32;
+      s.position.y = k === 0 ? 0 : 0.3;
       parent.add(s);
-      const r0 = 0.16 * (1 - k / n) + 0.02;
-      const m = new THREE.Mesh(frustum(r0 * 2, r0 * 2, r0 * 1.7, r0 * 1.7, 0.34), k % 2 ? flesh : dark);
-      s.add(m);
+      const r0 = 0.15 * (1 - k / n) + 0.025, r1 = 0.15 * (1 - (k + 1) / n) + 0.025;
+      add(loft([[-0.02, r0, r0 * 0.85], [0.15, (r0 + r1) / 2 * 1.04, (r0 + r1) / 2 * 0.86], [0.32, r1, r1 * 0.85]], 7), tentM, s);
       segs.push(s);
       parent = s;
     }
-    tentacles.push({ base, segs, phase: i * 1.3, angle: a });
+    const hook = add(new THREE.ConeGeometry(0.03, 0.22, 5), bone, parent);
+    hook.position.y = 0.38;
+    hook.rotation.x = 0.6;
+    tentacles.push({ base: tb, segs, phase: i * 1.3, angle: a });
   }
-  root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  return { root, core, mass, eyes, tentacles, mouth };
+  return { root, core, mass, eyes, sclera, tentacles, maw: { group: maw, throat, rows, light: mawLight }, faces, arms, flesh: fleshM, tentacle: tentM, bone };
 }

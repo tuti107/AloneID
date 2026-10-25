@@ -5,6 +5,7 @@ import * as F from '../furniture.js';
 import { C } from '../mats.js';
 import { tex } from '../../engine/textures.js';
 import { loft, headGeo } from '../body.js';
+import { buildDrownedArm } from '../characters.js';
 
 // Things on this layer are drawn only by the mirror's camera.
 const MIRROR_ONLY = 2;
@@ -135,57 +136,17 @@ function animateHand(h, t) {
   h.head.rotation.y = t * 0.15;
 }
 
-// A drowned arm with a hand of jointed fingers (curl them by rotating the
-// segments about x; the palm faces +z), and the head it belongs to.
+// The drowned arm (characters.js) and the head it belongs to: only its
+// crown of long black hair ever breaks the surface.
 function drownedHand() {
-  const skin = C(0x93a294, { phong: true, flat: false, shininess: 70, specular: 0x4a5a4a });
-  const nailM = C(0x231f1a, { flat: false });
+  const h = buildDrownedArm();
   const hairM = C(0x0b0c0d, { phong: true, flat: false, shininess: 90, specular: 0x333a40 });
-  const root = new THREE.Group();
   const mesh = (geo, m, parent) => {
     const me = new THREE.Mesh(geo, m);
     me.castShadow = true;
     parent.add(me);
     return me;
   };
-  // forearm from under the water up to the wrist: swollen, then bony
-  mesh(loft([[-0.03, 0, 0], [0, 0.04, 0.036], [0.16, 0.042, 0.037], [0.34, 0.032, 0.025, 0.003], [0.46, 0.027, 0.019], [0.475, 0, 0]], 8), skin, root);
-  const wrist = new THREE.Group();
-  wrist.position.y = 0.46;
-  root.add(wrist);
-  mesh(loft([[-0.014, 0.026, 0.019], [0.024, 0.037, 0.016, 0, 0.002], [0.08, 0.042, 0.015, 0, 0.004], [0.1, 0.039, 0.014, 0, 0.004]], 8), skin, wrist);
-  const fingers = [];
-  const segs = [[0.05, 0.035, 0.026], [0.056, 0.04, 0.028], [0.054, 0.037, 0.026], [0.042, 0.03, 0.022]];
-  [-0.028, -0.0095, 0.0095, 0.028].forEach((x, i) => {
-    let parent = wrist, y = 0.098;
-    const chain = [];
-    segs[i].forEach((len, k) => {
-      const j = new THREE.Group();
-      j.position.set(k === 0 ? x : 0, y, k === 0 ? 0.003 : 0);
-      if (k === 0) j.rotation.z = -x * 2.4; // splayed
-      parent.add(j);
-      const r0 = 0.01 - k * 0.0014;
-      mesh(loft([[-0.004, r0, r0 * 0.85], [len * 0.5, r0 * 0.94, r0 * 0.82], [len, r0 * 0.8, r0 * 0.72], [len + 0.004, 0, 0]], 6), skin, j);
-      if (k === 2) mesh(loft([[len * 0.3, 0.006, 0.0018], [len + 0.016, 0.004, 0.0014], [len + 0.02, 0, 0]], 4), nailM, j).position.z = r0 * 0.6;
-      chain.push(j);
-      parent = j;
-      y = len;
-    });
-    fingers.push(chain);
-  });
-  const thumb = [];
-  let tp = wrist, ty = 0.024;
-  [0.042, 0.035].forEach((len, k) => {
-    const j = new THREE.Group();
-    j.position.set(k === 0 ? 0.035 : 0, ty, k === 0 ? 0.012 : 0);
-    if (k === 0) j.rotation.set(0.5, 0, -0.7);
-    tp.add(j);
-    mesh(loft([[-0.004, 0.012, 0.011], [len, 0.0095, 0.0085], [len + 0.005, 0, 0]], 6), skin, j);
-    thumb.push(j);
-    tp = j;
-    ty = len;
-  });
-  // the crown of a head of long black hair, strands floating out round it
   const head = new THREE.Group();
   mesh(loft([[-0.12, 0.1, 0.11], [0.0, 0.105, 0.115], [0.07, 0.08, 0.09], [0.11, 0.035, 0.04], [0.12, 0, 0]], 10), hairM, head);
   for (let i = 0; i < 7; i++) {
@@ -197,7 +158,7 @@ function drownedHand() {
     head.add(strand);
   }
   head.visible = false;
-  return { root, wrist, fingers, thumb, head, base: new THREE.Vector3(), dir: new THREE.Vector3(0, 1, 0), aim: new THREE.Quaternion() };
+  return { ...h, head, base: new THREE.Vector3(), dir: new THREE.Vector3(0, 1, 0), aim: new THREE.Quaternion() };
 }
 
 // Point the arm so that its hand closes on `target` (his wrist), coming up

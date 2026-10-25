@@ -1,8 +1,8 @@
 // The thing in the pool beneath Ashcombe House.
 import * as THREE from 'three';
 import { buildHorror } from './characters.js';
-import { frustum } from '../engine/geom.js';
-import { C, spriteMat } from './mats.js';
+import { loft } from './body.js';
+import { spriteMat } from './mats.js';
 import { damp, noise1 } from '../engine/util.js';
 
 export class Horror {
@@ -28,9 +28,14 @@ export class Horror {
     this.root.visible = false;
     this.edge = o.edge; // z of the pool edge
     room.dynamic.add(this.root);
-    this.light = new THREE.PointLight(0x60ff90, 0, 9, 2);
-    this.light.position.set(0, 2.2, 1.2);
+    // lit from below, off the pool, cold from above, and red from its maw
+    this.light = new THREE.PointLight(0x9aa458, 0, 16, 1.4);
+    this.light.position.set(0, 0.3, 2.2);
     this.root.add(this.light);
+    this.topLight = new THREE.PointLight(0x6a80c0, 0, 14, 1.3);
+    this.topLight.position.set(-0.4, 3.6, -2.0);
+    this.root.add(this.topLight);
+    this.roar = 0;
   }
 
   rise(instant = false) {
@@ -59,7 +64,29 @@ export class Horror {
     }
     const writhe = this.state === 'sealed' ? 2.2 : this.state === 'burning' ? 3.5 : 1;
     b.core.rotation.y = Math.sin(t * 0.4) * 0.2;
-    b.mass.scale.set(1.2 + Math.sin(t * 2.1) * 0.04 * writhe, 1.5 + Math.sin(t * 1.7) * 0.05 * writhe, 1.0);
+    b.core.rotation.z = Math.sin(t * 0.33) * 0.05 * writhe;
+    // the flesh heaves
+    b.mass.scale.set(1 + Math.sin(t * 2.1) * 0.03 * writhe, 1 + Math.sin(t * 1.7) * 0.035 * writhe, 1 + Math.sin(t * 2.6) * 0.02 * writhe);
+    // the maw breathes; it opens wide to roar, and screams when sealed or burning
+    this.roar = Math.max(0, this.roar - dt * 0.8);
+    const scream = this.state === 'sealed' || this.state === 'burning';
+    const open = Math.min(1, 0.25 + 0.2 * Math.sin(t * 1.3) + this.roar + (scream ? 0.55 + Math.sin(t * 23) * 0.08 : 0));
+    const m = b.maw;
+    m.throat.scale.x = 0.07 + open * 0.32;
+    for (const row of m.rows) row.position.x = row.userData.side * (0.03 + open * 0.2);
+    m.light.intensity = this.state === 'burning' ? 0 : 0.8 + open * 2.6;
+    // human arms reaching out of it, fingers clutching at nothing
+    b.arms.forEach((a, i) => {
+      const ph = t * (1.1 + i * 0.13) + a.phase;
+      const spasm = Math.max(0, Math.sin(t * 0.7 + a.phase * 3)) ** 8;
+      a.root.rotation.x = a.baseRot.x + Math.sin(ph) * 0.18 + spasm * 0.3 * Math.sin(t * 31);
+      a.root.rotation.z = a.baseRot.z + Math.sin(ph * 0.7) * 0.22;
+      const curl = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(ph * 1.9)) + spasm * 0.4;
+      for (const f of a.fingers) f.forEach((sg, k) => { sg.rotation.x = curl * [0.7, 1.0, 0.9][k]; });
+      a.thumb.forEach((sg) => { sg.rotation.x = curl * 0.5; });
+    });
+    // the faces strain to get out
+    b.faces.forEach((f, i) => { f.rotation.z = Math.sin(t * 0.5 + i * 2.1) * 0.12; });
     for (const tn of b.tentacles) {
       tn.segs.forEach((s, k) => {
         s.rotation.x = Math.sin(t * 1.6 * writhe + tn.phase + k * 0.55) * 0.28 * (0.4 + k * 0.12);
@@ -67,17 +94,23 @@ export class Horror {
       });
       tn.base.rotation.x = -0.6 + Math.sin(t * 0.7 + tn.phase) * 0.3;
     }
-    // eyes track the player
+    // every eye follows him, and they blink out of step
     const p = g.player.pos;
+    const wp = new THREE.Vector3(), lp = new THREE.Vector3();
     for (const e of b.eyes) {
-      const wp = new THREE.Vector3();
-      e.getWorldPosition(wp);
-      e.rotation.y = Math.atan2(p.x - wp.x, p.z - wp.z) * 0.6;
-      e.rotation.x = -0.2;
+      e.parent.getWorldPosition(wp);
+      lp.set(p.x, p.y + 1.4, p.z);
+      e.parent.worldToLocal(lp);
+      e.rotation.y = Math.max(-0.7, Math.min(0.7, Math.atan2(lp.x, lp.z)));
+      e.rotation.x = Math.max(-0.6, Math.min(0.6, -Math.atan2(lp.y, Math.hypot(lp.x, lp.z))));
+      e.userData.blinkT -= dt;
+      if (e.userData.blinkT < 0) e.userData.blinkT = 1.5 + Math.random() * 6;
+      e.scale.y = e.userData.blinkT < 0.14 ? 0.12 : 1;
     }
     const sealed = this.state === 'sealed';
-    for (const e of b.eyes) e.material.color.setHex(sealed ? 0xd85040 : 0xd8d8b0);
-    this.light.intensity = this.state === 'burning' ? 0 : 6 + Math.sin(t * 3) * 2;
+    b.sclera.color.setHex(sealed ? 0xd85040 : 0xc0aa44);
+    this.light.intensity = this.state === 'burning' ? 0 : 4.5 + Math.sin(t * 3) * 1.2;
+    this.topLight.intensity = this.state === 'burning' ? 0 : 11;
     this.root.position.copy(this.pos);
     // attacks
     if ((this.state === 'idle' || sealed) && g.player.alive) {
@@ -137,23 +170,26 @@ export class Horror {
     const arm = new THREE.Group();
     group.add(arm);
     const len = Math.hypot(x - bx, z - bz) + 0.6;
-    const n = 7;
-    const fl = C(0x2a3a30, { phong: true, shininess: 60 });
-    const dk = C(0x101810, { phong: true });
+    const n = 8, sl = len / n;
     let parent = arm;
     for (let k = 0; k < n; k++) {
       const seg = new THREE.Group();
-      seg.position.y = k === 0 ? 0 : len / n;
+      seg.position.y = k === 0 ? 0 : sl;
       parent.add(seg);
-      const r0 = 0.24 * (1 - k / n) + 0.05;
-      const m = new THREE.Mesh(frustum(r0 * 2, r0 * 2, r0 * 1.7, r0 * 1.7, len / n + 0.02), k % 2 ? fl : dk);
+      const r0 = 0.24 * (1 - k / n) + 0.05, r1 = 0.24 * (1 - (k + 1) / n) + 0.05;
+      const m = new THREE.Mesh(loft([[-0.03, r0, r0 * 0.85], [sl / 2, (r0 + r1) / 2 * 1.04, (r0 + r1) / 2 * 0.86], [sl + 0.02, r1, r1 * 0.85]], 7), this.b.tentacle);
       m.castShadow = true;
       seg.add(m);
       seg.rotation.x = 0.05;
       parent = seg;
     }
+    const hook = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.32, 5), this.b.bone);
+    hook.position.y = sl + 0.12;
+    hook.rotation.x = 0.7;
+    parent.add(hook);
     arm.rotation.x = Math.PI / 2 - 1.3;
     this.slams.push({ x, z, bx, bz, t: 0, marker, group, arm, hit: false });
+    this.roar = 1;
     this.game.audio.sfx('tentacle', { at: { x: bx, y: 0, z: bz } });
   }
 

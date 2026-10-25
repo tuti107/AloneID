@@ -967,6 +967,17 @@ function face({ skin, eye = '#e6dece', iris = '#3a2616', brows = '#2a1a10', lips
     c.opts = { repeat: false };
     return c;
   }
+  if (kind === 'agony') {
+    const shade = (a) => `rgba(20,10,10,${a})`;
+    px(6, 8, 7, 5, shade(0.35)); px(19, 8, 7, 5, shade(0.35));
+    px(7, 10, 5, 1, '#1a1010'); px(20, 10, 5, 1, '#1a1010');
+    px(8, 6, 4, 1, '#2a2020'); px(20, 6, 4, 1, '#2a2020'); px(12, 7, 1, 1, '#2a2020'); px(19, 7, 1, 1, '#2a2020');
+    px(14, 12, 1, 6, shade(0.2)); px(17, 12, 1, 6, shade(0.2));
+    px(12, 19, 8, 9, '#120404'); px(13, 18, 6, 1, '#120404'); px(13, 28, 6, 1, '#120404');
+    px(13, 20, 6, 1, '#c8bca0');
+    c.opts = { repeat: false };
+    return c;
+  }
   if (kind === 'ghost') {
     // hollow eyes and a moaning mouth: black reads as see-through when added
     px(7, 8, 5, 5, '#000'); px(20, 8, 5, 5, '#000');
@@ -1099,6 +1110,7 @@ const BUILDERS = {
   faceGhoulGlow: () => face({ eye: '#ffd040', kind: 'ghoul', glow: true }),
   faceGhost: () => face({ skin: '#ffffff', kind: 'ghost' }),
   faceDrowned: () => face({ skin: '#a8b6b2', kind: 'ghost' }),
+  faceAgony: () => face({ skin: '#8e9290', kind: 'agony' }),
 };
 
 function plainWood(seed, base, dark) {
