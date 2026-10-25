@@ -15,12 +15,18 @@ const B = new THREE.Vector3();
 export class Shot {
   constructor(def) {
     this.id = def.id;
-    this.pos = new THREE.Vector3(...def.pos);
-    this.look = new THREE.Vector3(...def.look);
+    this.pos = new THREE.Vector3(...(def.pos || [0, 2, 0]));
+    this.look = new THREE.Vector3(...(def.look || [0, 1, 1]));
     this.fov = def.fov || 50;
     this.auto = !!def.auto;
+    // rail(target, dt, snap, state) -> { pos, look, fov }: a camera that
+    // travels with the player (corridors). lock: never cut away from it
+    // while the player is inside its zone.
+    this.rail = def.rail || null;
+    this.railState = {};
+    this.lock = !!def.lock;
     // 0..1: how much the view pans towards the player, within trackLimit rad
-    this.track = def.track ?? (this.auto ? 0.55 : 0.3);
+    this.track = def.track ?? (this.rail ? 0 : this.auto ? 0.55 : 0.3);
     this.trackLimit = def.trackLimit ?? (this.auto ? 0.8 : 0.5);
     this.zones = (def.zones || (def.zone ? [def.zone] : [])).map((z) => (z.length === 4 && typeof z[0] === 'number' ? rectToPoly(z) : z));
     this.priority = def.priority || 0;
@@ -189,6 +195,29 @@ export class CameraDirector {
     return s;
   }
 
+  // Put a rail shot where it wants to be for this player position.
+  steer(s, target, dt, snap) {
+    if (!s.rail) return;
+    const r = s.rail(target, dt, snap, s.railState);
+    s.place(RP.set(r.pos[0], r.pos[1], r.pos[2]), RL.set(r.look[0], r.look[1], r.look[2]));
+    s.fwd = r.fwd || null;
+    if (r.fov && r.fov !== s.fov) {
+      s.fov = r.fov;
+      s.cam.fov = r.fov;
+      s.cam.updateProjectionMatrix();
+    }
+  }
+
+  // Which way "up" on the stick points in the world: the way the camera
+  // looks, or the travel axis a rail camera reports.
+  controlDir() {
+    const f = this.current && !this.override && this.current.fwd;
+    if (f) return { x: f[0], z: f[1] };
+    this.cam.getWorldDirection(V);
+    const l = Math.hypot(V.x, V.z) || 1;
+    return { x: V.x / l, z: V.z / l };
+  }
+
   zoneShot(x, z) {
     let best = null;
     for (const s of this.shots) if (!s.auto && s.contains(x, z) && (!best || s.priority > best.priority)) best = s;
@@ -198,7 +227,7 @@ export class CameraDirector {
   best(pts, x, z, exclude = null) {
     let best = null, bestS = -1e9, bestE = null;
     for (const s of this.shots) {
-      if (s === exclude) continue;
+      if (s === exclude || s.rail) continue;
       const e = this.evaluate(s, pts, {});
       const sc = this.score(s, e, x, z);
       if (sc > bestS) { best = s; bestS = sc; bestE = e; }
@@ -261,9 +290,11 @@ export class CameraDirector {
     let cut = false;
     if (this.forced) {
       cut = this.cutTo(this.forced) || force;
+      this.steer(this.forced, target, dt, cut);
     } else if (force || !this.current) {
       const zs = this.zoneShot(x, z);
-      let pick = zs && this.evaluate(zs, pts, this.ev).good ? zs : null;
+      if (zs) this.steer(zs, target, dt, true);
+      let pick = zs && (zs.lock || this.evaluate(zs, pts, this.ev).good) ? zs : null;
       if (!pick) {
         const b = this.best(pts, x, z);
         pick = b.e && b.e.good ? b.shot : null;
@@ -275,13 +306,17 @@ export class CameraDirector {
       this.dwell += dt;
       this.evalT -= dt;
       if (this.current === this.follow) this.placeFollow(target, dt, false);
+      this.steer(this.current, target, dt, false);
       if (this.evalT <= 0) {
         this.evalT = 0.1;
         const cur = this.current;
         const ce = this.evaluate(cur, pts, this.ev);
         const zs = this.zoneShot(x, z);
-        if (zs && zs !== cur && this.dwell > 0.35 && this.evaluate(zs, pts, {}).good) {
+        if (zs && zs !== cur && this.dwell > 0.35 && (zs.lock || this.evaluate(zs, pts, {}).good)) {
+          this.steer(zs, target, 0, true);
           cut = this.cutTo(zs);
+        } else if (cur.lock && cur.contains(x, z)) {
+          this.badT = 0;
         } else {
           if (ce.good && cur !== this.follow) this.badT = 0;
           else this.badT += 0.1;
@@ -319,11 +354,14 @@ export class CameraDirector {
         want.copy(s.pos).addScaledVector(dir, s.look.distanceTo(s.pos));
       }
     }
-    if (cut) this.lookNow.copy(want);
+    // rails ease themselves; fixed shots pan smoothly after the player
+    if (cut || s.rail) this.lookNow.copy(want);
     else this.lookNow.lerp(want, 1 - Math.exp(-6 * dt));
     cam.lookAt(this.lookNow);
   }
 }
 const TMPV = new THREE.Vector3();
+const RP = new THREE.Vector3();
+const RL = new THREE.Vector3();
 const TMPA = new THREE.Vector3();
 const TMPB = new THREE.Vector3();

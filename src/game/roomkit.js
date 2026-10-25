@@ -14,6 +14,31 @@ import { ITEMS } from './items.js';
 
 export { mat };
 
+// Pool of light under a door: brightest at the door edge (top of the
+// texture), fading out into the room and towards the sides.
+let spillCanvasTex = null;
+function spillTex() {
+  if (spillCanvasTex) return spillCanvasTex;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 32;
+  const g = c.getContext('2d');
+  const img = g.createImageData(64, 32);
+  for (let y = 0; y < 32; y++) {
+    for (let x = 0; x < 64; x++) {
+      const u = (x + 0.5) / 64 * 2 - 1, v = (y + 0.5) / 32;
+      const a = Math.max(0, 1 - v) ** 1.6 * Math.max(0, 1 - Math.abs(u) ** 2.2);
+      const i = (y * 64 + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.round(255 * a);
+      img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  spillCanvasTex = new THREE.CanvasTexture(c);
+  spillCanvasTex.colorSpace = THREE.SRGBColorSpace;
+  return spillCanvasTex;
+}
+
 export class Room {
   constructor(game, def) {
     this.game = game;
@@ -549,6 +574,20 @@ export class Room {
       makeLeaf(w / 2, -w / 2, 1);
       makeLeaf(w / 2, w / 2, -1);
     } else makeLeaf(w, o.hinge === 'right' ? w / 2 : -w / 2, o.hinge === 'right' ? -1 : 1);
+    if (o.spill) {
+      // light from the room beyond: a bright line under the door and a pool
+      // on the floor in front of it, so a door reads even in a dark hall
+      const add = (geo, m, y, z) => {
+        const me = new THREE.Mesh(geo, m);
+        me.position.set(0, y, z);
+        me.rotation.x = -Math.PI / 2;
+        me.renderOrder = 1;
+        g.add(me);
+      };
+      const glowM = (op, map) => new THREE.MeshBasicMaterial({ color: o.spill, map, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
+      add(new THREE.PlaneGeometry(w - 0.06, 0.05), glowM(1), 0.006, -0.03);
+      add(new THREE.PlaneGeometry(w + 0.7, 1.0), glowM(0.5, spillTex()), 0.008, 0.5);
+    }
     this.dynamic.add(g);
     const c = Math.cos(ry), s = Math.sin(ry);
     const col = this.collider(x - s * 0.1, z - c * 0.1, w / 2 + 0.05, 0.2, ry, { ctag: 'door' });
@@ -878,10 +917,11 @@ export class Room {
   buildAutoShots() {
     const r = this.def.camRect || this.camRect || [this.bounds[0] + 0.4, this.bounds[1] + 0.4, this.bounds[2] - 0.4, this.bounds[3] - 0.4, 3.2];
     this.camRect = r;
+    this.autoShots = [];
+    if (this.def.autoShots === false) return;
     const [x0, z0, x1, z1, h] = r;
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     const y = h > 4 ? Math.min(h - 0.6, 4.8) : h - 0.25;
-    this.autoShots = [];
     const inside = (p) => this.occluders.some((o) => o.contains(p));
     let i = 0;
     for (const [px, pz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) {

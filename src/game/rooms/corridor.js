@@ -2,12 +2,16 @@
 import * as F from '../furniture.js';
 import { M } from '../mats.js';
 
+// doors along the corridor: x, and the wall they are in (-1 north, +1 south)
+const DOORS = [[-3.5, -1], [0.5, 1], [3.0, -1]];
+
 export default {
   id: 'corridor',
   name: '二階廊下',
   bounds: [-10.5, -1.6, 8.3, 1.6],
   floorType: 'carpet',
   ambience: 'house',
+  autoShots: false,
   build(r, g) {
     const H = 3.0;
     r.shell(-8, -1.3, 8, 1.3, {
@@ -53,17 +57,20 @@ export default {
     r.entry('fromStairs', -7.6, 0, Math.PI / 2);
 
     // doors
-    r.door(8, 0, -Math.PI / 2, { w: 0.9, h: 2.05, to: 'attic', entry: 'fromCorridor', label: '屋根裏への扉', panel: 'wood', frame: 'woodBlack', wallMat: 'wallpaperGreen' });
+    // pale frames and light spilling from under them, so the doors stand
+    // out against the dark green paper
+    const frame = '#a89878';
+    r.door(8, 0, -Math.PI / 2, { w: 0.9, h: 2.05, to: 'attic', entry: 'fromCorridor', label: '屋根裏への扉', panel: 'wood', frame, spill: 0x8a6030, wallMat: 'wallpaperGreen' });
     r.entry('fromAttic', 7.4, 0, -Math.PI / 2);
-    r.door(-3.5, -1.3, 0, { to: 'bathroom', entry: 'fromCorridor', label: '浴室の扉', wallMat: 'wallpaperGreen' });
-    r.entry('fromBathroom', -3.5, -0.7, Math.PI);
+    r.door(-3.5, -1.3, 0, { to: 'bathroom', entry: 'fromCorridor', label: '浴室の扉', frame, spill: 0x7088b0, wallMat: 'wallpaperGreen' });
+    r.entry('fromBathroom', -3.5, -0.7, 0);
     r.door(3.0, -1.3, 0, {
-      id: 'bedroomDoor', to: 'bedroom', entry: 'fromCorridor', label: '主寝室の扉', wallMat: 'wallpaperGreen',
+      id: 'bedroomDoor', to: 'bedroom', entry: 'fromCorridor', label: '主寝室の扉', frame, spill: 0x905038, wallMat: 'wallpaperGreen',
       locked: true, key: 'bedroomKey', lockedMsg: '鍵がかかっている。扉には「主寝室」の真鍮の札。',
     });
-    r.entry('fromBedroom', 3.0, -0.7, Math.PI);
-    r.door(0.5, 1.3, Math.PI, { to: 'library', entry: 'fromCorridor', label: '書斎の扉', wallMat: 'wallpaperGreen', panel: 'woodRed' });
-    r.entry('fromLibrary', 0.5, 0.7, 0);
+    r.entry('fromBedroom', 3.0, -0.7, 0);
+    r.door(0.5, 1.3, Math.PI, { to: 'library', entry: 'fromCorridor', label: '書斎の扉', frame, spill: 0xc08040, wallMat: 'wallpaperGreen', panel: 'woodRed' });
+    r.entry('fromLibrary', 0.5, 0.7, Math.PI);
 
     // windows
     r.window(5.6, 1.3, Math.PI, { w: 1.0, h: 1.6, sill: 0.8, curtains: 'curtainRed', wallMat: 'wallpaperGreen', shadow: 'lo', intensity: 60, angle: 0.55 });
@@ -119,8 +126,67 @@ export default {
       g.spawn(r, { id: 'butler', type: 'butler', x: -3.0, z: 0.1, rot: Math.PI / 2, onDeath: () => { g.flags['dead:butler'] = true; } });
     }
 
-    r.shot({ id: 'east', pos: [0.6, 2.6, -1.05], look: [8.0, 0.7, 0.35], fov: 52, zone: [1.8, -1.6, 8.3, 1.6] });
-    r.shot({ id: 'mid', pos: [-7.7, 2.6, -1.05], look: [2.5, 0.8, 0.45], fov: 50, zone: [-3.6, -1.6, 2.2, 1.6] });
-    r.shot({ id: 'west', pos: [2.4, 2.55, 1.05], look: [-8.5, 0.6, -0.3], fov: 50, zone: [-10.6, -1.6, -3.2, 1.6] });
+    // One camera travels along the corridor a little behind the player and
+    // looks the way he is heading, so no cut ever turns the picture round.
+    // Walk back the other way for a metre and it swings round him to the
+    // other side; passing a door it drifts to the far wall and pans to it.
+    r.shot({
+      id: 'rail', zone: [-10.6, -1.6, 8.3, 1.6], fov: 56, lock: true,
+      rail(p, dt, snap, st) {
+        if (snap || st.dir === undefined) {
+          st.dir = Math.sin(g.player.rot) > 0.2 ? 1 : -1; // +1: looking east
+          st.b = st.dir > 0 ? 1 : 0;
+          st.x = p.x;
+          st.back = 0;
+          st.side = p.z >= 0 ? 1 : -1;
+        }
+        const dx = p.x - st.x;
+        st.x = p.x;
+        if (dx * st.dir < 0) st.back += Math.abs(dx);
+        else if (dx) st.back = Math.max(0, st.back - Math.abs(dx) * 2);
+        if (st.back > 1.0) {
+          st.dir = -st.dir;
+          st.back = 0;
+          st.side = p.z >= 0 ? 1 : -1;
+        }
+        st.b += Math.max(-dt / 1.2, Math.min(dt / 1.2, (st.dir > 0 ? 1 : 0) - st.b));
+        const e = st.b * st.b * (3 - 2 * st.b);
+        const sw = Math.sin(e * Math.PI); // 1 half way round, looking across
+        const vx = -Math.cos(e * Math.PI), vz = sw * st.side;
+        let lean = 0;
+        for (const [x, wall] of DOORS) {
+          const w = Math.max(0, 1 - Math.abs(p.x - x) / 2.0);
+          lean += wall * w * w * (3 - 2 * w);
+        }
+        const D = 2.6 - 1.5 * sw;
+        // stay near the middle of the corridor, so a man hugging the wall is
+        // still seen past door frames and through the arch
+        let cx = p.x - vx * D, cz = p.z * 0.45 - vz * D - lean * 0.7;
+        let lx = p.x + vx * 1.6, ly = 0.85, lz = p.z + vz * 1.6 + lean * 0.9;
+        // No room behind him at an end of the corridor: ease into the corner
+        // across from him (chosen once, so it can't jump) for a 3/4 view.
+        const over = Math.max(0, cx - 7.8, -10.25 - cx);
+        cx = Math.max(-10.25, Math.min(7.8, cx));
+        if (over > 0) st.corner ??= p.z >= 0 ? -1 : 1;
+        else st.corner = undefined;
+        const k = Math.min(1, over / 1.4);
+        const c = k * k * (3 - 2 * k);
+        let cy = 2.45 + 0.25 * sw;
+        if (c > 0) {
+          cz += (st.corner * 1.05 - cz) * c;
+          cy += 0.2 * c;
+          lx += (p.x + vx * 0.8 - lx) * c;
+          lz += (p.z - lz) * c;
+          ly -= 0.15 * c;
+        }
+        return {
+          pos: [cx, cy, Math.max(-1.1, Math.min(1.1, cz))],
+          look: [lx, ly, lz],
+          fov: 56 + 10 * Math.max(sw, c),
+          // "up" on the stick runs along the corridor, whatever the pan
+          fwd: [vx, vz],
+        };
+      },
+    });
   },
 };

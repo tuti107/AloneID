@@ -156,10 +156,8 @@ export class Player {
           // so a camera cut doesn't suddenly flip where you're walking;
           // swing the stick somewhere new and the current view is used.
           if (!this.basis || Math.abs(angleDiff(this.basis.dirIn, dirIn)) > 0.9) {
-            const d = new THREE.Vector3();
-            g.director.cam.getWorldDirection(d);
-            const l = Math.hypot(d.x, d.z) || 1;
-            this.basis = { fx: d.x / l, fz: d.z / l, dirIn };
+            const d = g.director.controlDir();
+            this.basis = { fx: d.x, fz: d.z, dirIn };
           }
           const { fx, fz } = this.basis;
           const dx = fx * -ay - fz * ax, dz = fz * -ay + fx * ax;
