@@ -672,6 +672,76 @@ export function humanClips() {
         setJ(p, 'spine', 0.02, k * 0.2, 0);
       },
     },
+    // a sudden fright: he jerks back with his arms thrown up, then settles into a guard
+    startle: {
+      dur: 1.1,
+      fade: 0.04,
+      fn(t, p) {
+        const a = seg(t, 0, 0.12), r = seg(t, 0.5, 1.1);
+        const jolt = a * (1 - r);
+        const shiver = S(t * 70) * 0.025 * (1 - seg(t, 0.2, 0.6));
+        restArms(p, 0.1, -0.2);
+        setJ(p, 'lShoulder', -1.25 * jolt - 0.9 * r, 0, 0.35 * jolt + 0.15 * r);
+        setJ(p, 'rShoulder', -1.35 * jolt - 0.75 * r, 0, -0.35 * jolt - 0.15 * r);
+        setJ(p, 'lElbow', -1.3 * jolt - 1.6 * r);
+        setJ(p, 'rElbow', -1.2 * jolt - 1.7 * r);
+        setJ(p, 'spine', -0.32 * jolt + 0.06 * r + shiver, 0, 0);
+        setJ(p, 'neck', -0.3 * jolt + 0.05 * r, 0, 0);
+        setJ(p, 'lHip', -0.15 * jolt - 0.2 * r);
+        setJ(p, 'rHip', 0.35 * jolt + 0.15 * r);
+        setJ(p, 'lKnee', 0.25 * jolt + 0.2 * r);
+        setJ(p, 'rKnee', 0.35 * jolt + 0.15 * r);
+        p[ROOT + 1] = -0.05 * jolt - 0.04 * r;
+        p[ROOT + 2] = -0.08 * jolt;
+      },
+    },
+    // fists up, weight on the balls of his feet
+    guard: {
+      loop: true,
+      fn(t, p) {
+        const b = S(t * 2.2) * 0.015;
+        restArms(p, 0.1, -0.2);
+        setJ(p, 'lShoulder', -0.9 + b, 0, 0.15);
+        setJ(p, 'rShoulder', -0.75 - b, 0, -0.15);
+        setJ(p, 'lElbow', -1.6);
+        setJ(p, 'rElbow', -1.7);
+        setJ(p, 'spine', 0.06 + b, 0, 0);
+        setJ(p, 'neck', 0.05);
+        setJ(p, 'lHip', -0.2);
+        setJ(p, 'rHip', 0.15);
+        setJ(p, 'lKnee', 0.2);
+        setJ(p, 'rKnee', 0.15);
+        p[ROOT + 1] = -0.04 + b * 0.5;
+      },
+    },
+    // creeping forward with the lamp held up to see by
+    stalk: {
+      loop: true,
+      period: () => 1 / 0.7,
+      events: STEP_EVENTS,
+      fn(t, p) {
+        gait(t, p, { freq: 0.7, leg: 0.3, arm: 0.12, knee0: 0.18, knee: 0.55, bob: 0.012, lean: 0.12, drop: 0.03 });
+        setJ(p, 'lShoulder', -1.3, 0, 0.05);
+        setJ(p, 'lElbow', -0.5);
+        setJ(p, 'neck', -0.05);
+      },
+    },
+    // standing still, the lamp held up into the dark
+    peer: {
+      loop: true,
+      fn(t, p) {
+        restArms(p, 0.09, -0.15);
+        setJ(p, 'lShoulder', -1.35 + S(t * 1.3) * 0.02, 0, 0.05);
+        setJ(p, 'lElbow', -0.45);
+        setJ(p, 'spine', 0.1 + S(t * 1.6) * 0.012, 0, 0);
+        setJ(p, 'neck', -0.08, S(t * 0.4) * 0.15, 0);
+        setJ(p, 'lHip', -0.18);
+        setJ(p, 'rHip', 0.05);
+        setJ(p, 'lKnee', 0.12);
+        setJ(p, 'rKnee', 0.06);
+        p[ROOT + 1] = -0.01;
+      },
+    },
   };
 }
 

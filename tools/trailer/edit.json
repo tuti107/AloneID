@@ -12,7 +12,7 @@
     { "shot": "S07", "in": 0.6, "dur": 5.0, "lead": 0.5 },
     { "shot": "S05", "in": 0.0, "dur": 4.55, "gain": 15 },
     { "shot": "S04", "in": 0.4, "dur": 3.25 },
-    { "shot": "S08", "in": 0.6, "dur": 3.0 },
+    { "shot": "S08", "in": 1.0, "dur": 3.2 },
     { "card": "c5_dont_look", "dur": 2.0, "silent": true },
     { "shot": "S05", "in": 4.625, "dur": 3.0, "label": "S06", "hits": [0.875] },
     { "shot": "S09", "in": 0.9, "dur": 2.4, "hits": [0] },

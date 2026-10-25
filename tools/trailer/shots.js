@@ -23,6 +23,71 @@
   const ramp = (t, t0, t1) => ease(Math.min(1, Math.max(0, (t - t0) / (t1 - t0))));
   const strong = (g) => { g.player.maxHp = g.player.hp = 9999; };
 
+  // Edgar's acting, as a timeline of steps run from a shot's `each` hook:
+  // { t, clip, speed, fade, v: m/s along his facing (negative backs away),
+  //   face: an angle or g => angle, turn: how fast he turns to it,
+  //   free: hand him back to the game (hits, attacks), do: g => anything }
+  // The game's own update still resolves collisions and fires footsteps.
+  const edgar = (steps) => {
+    let i = 0, v = 0, face = null, turn = 7;
+    return (g, t, dt) => {
+      const p = g.player;
+      while (i < steps.length && t >= steps[i].t) {
+        const s = steps[i++];
+        if (s.do) s.do(g);
+        if (s.free) {
+          v = 0;
+          face = null;
+          if (p.state === 'scripted') p.setState('idle');
+          continue;
+        }
+        if (s.clip) {
+          p.setState('scripted');
+          p.scriptedDone = null;
+          p.anim.play(s.clip, { restart: true, fade: s.fade ?? 0.18, speed: s.speed ?? 1 });
+        }
+        if (s.v !== undefined) v = s.v;
+        if (s.face !== undefined) face = s.face;
+        if (s.turn !== undefined) turn = s.turn;
+      }
+      if (p.state !== 'scripted') return;
+      if (face !== null) {
+        const want = typeof face === 'function' ? face(g) : face;
+        const d = Math.atan2(Math.sin(want - p.rot), Math.cos(want - p.rot));
+        p.rot += d * Math.min(1, dt * turn);
+      }
+      if (v) {
+        p.pos.x += Math.sin(p.rot) * v * dt;
+        p.pos.z += Math.cos(p.rot) * v * dt;
+      }
+    };
+  };
+  const toward = (x, z) => (g) => Math.atan2(x - g.player.pos.x, z - g.player.pos.z);
+  const towardM = (pick) => (g) => {
+    const m = pick(g), p = g.player;
+    return m ? Math.atan2(m.pos.x - p.pos.x, m.pos.z - p.pos.z) : p.rot;
+  };
+  // a punch or a kick (or a shot, with the revolver drawn) at a monster
+  const attack = (pick, kick = false) => (g) => {
+    const p = g.player, m = pick(g);
+    if (m) p.rot = Math.atan2(m.pos.x - p.pos.x, m.pos.z - p.pos.z);
+    p.combo = kick ? 1 : 0;
+    p.comboT = kick ? 0.5 : 0;
+    p.attack();
+  };
+  const ghoul = (g) => g.room.ghoul;
+  const cook = (g) => g.room.monsters.find((m) => m.id === 'cook');
+  const nearest = (type) => (g) => {
+    const p = g.player;
+    let best = null, bd = 1e9;
+    for (const m of g.room.monsters) {
+      if (m.type !== type || !m.alive) continue;
+      const d = Math.hypot(m.pos.x - p.pos.x, m.pos.z - p.pos.z);
+      if (d < bd) { bd = d; best = m; }
+    }
+    return best;
+  };
+
   window.__SHOTS = {
     // 嵐の館: push in on the house; two strikes; the tower's top light goes out
     S01: {
@@ -47,20 +112,22 @@
         g.debugStart('attic', 'start', { flags: { atticIntro: true } });
         strong(g);
       },
-      ready: (g) => { g.player.place(0.15, -1.2, Math.atan2(-2.15, -1.8)); },
+      ready: (g) => { g.player.place(0.45, -0.95, Math.atan2(-2.45, -2.05)); },
       cam: [
         { t: 0, pos: [1.15, 1.45, 0.6], look: [-2.1, 1.25, -2.9], fov: 54 },
         { t: 6.5, pos: [0.95, 1.44, 0.32], look: [-2.0, 1.22, -2.9], fov: 53 },
       ],
-      each: (g, t, dt) => {
-        const gh = g.room.ghoul, p = g.player;
-        if (t < 2.25 || t > 3.0 || !gh) return;
-        const want = Math.atan2(gh.pos.x - p.pos.x, gh.pos.z - p.pos.z);
-        let d = want - p.rot;
-        while (d > PI) d -= 2 * PI;
-        while (d < -PI) d += 2 * PI;
-        p.rot += d * Math.min(1, dt * 7);
-      },
+      each: edgar([
+        { t: 0.2, clip: 'walk', speed: 0.6, v: 0.84 },
+        { t: 1.55, clip: 'idle', v: 0, fade: 0.3 },
+        { t: 1.95, clip: 'startle', v: -0.9, face: towardM(ghoul) },
+        { t: 2.25, v: 0 },
+        { t: 2.45, clip: 'back', speed: 0.95, v: -0.8 },
+        { t: 3.0, clip: 'guard', v: 0 },
+        { t: 3.35, free: true },
+        { t: 4.05, do: attack(ghoul) },
+        { t: 4.55, do: attack(ghoul, true) },
+      ]),
       events: [
         { t: 0.3, run: (g) => g.audio.sfx('scratch', { at: { x: -2, y: 1.4, z: -3 } }) },
         { t: 1.2, run: (g) => { g.audio.sfx('bang', { at: { x: -2, y: 1.4, z: -3 } }); g.shake(0.03, 0.15); } },
@@ -80,7 +147,7 @@
         strong(g);
       },
       ready: (g) => {
-        g.player.place(1.6, -0.4, -PI / 2);
+        g.player.place(1.9, -0.35, -PI / 2);
         const b = g.room.monsters.find((m) => m.id === 'butler');
         b.pos.set(-4.7, 0, 0.25);
         b.rot = PI / 2;
@@ -88,9 +155,14 @@
         b.wake();
       },
       cam: [
-        { t: 0, pos: [4.1, 1.55, 0.72], look: [-5.0, 1.35, 0.12], fov: 42 },
-        { t: 6.5, pos: [3.45, 1.5, 0.62], look: [-5.0, 1.33, 0.1], fov: 42 },
+        { t: 0, pos: [4.0, 1.55, 0.7], look: [-5.0, 1.35, 0.12], fov: 42 },
+        { t: 6.5, pos: [4.5, 1.55, 0.68], look: [-5.0, 1.33, 0.1], fov: 42 },
       ],
+      each: edgar([
+        { t: 0, clip: 'stalk', v: 0.7 },
+        { t: 2.4, clip: 'peer', v: 0, fade: 0.4 },
+        { t: 3.3, clip: 'back', speed: 0.75, v: -0.55, face: -PI / 2 },
+      ]),
     },
 
     // 浴室: he reaches into the black water and a hand takes him by the wrist
@@ -117,6 +189,11 @@
         g.testUse('sideboard');
         await T.until(() => g.director.override && g.director.override.pos.y === 2.05, 15);
       },
+      each: edgar([
+        { t: 5.5, clip: 'hit', speed: 0.5 },
+        { t: 6.25, clip: 'run', v: 2.8, face: toward(-2.6, 2.2), turn: 10 },
+        { t: 6.95, face: toward(3.8, 2.0) },
+      ]),
     },
 
     // 音楽室: Eleanor waltzes to the record
@@ -127,8 +204,14 @@
         g.testUse('gramophone', 'record');
         await T.until(() => g.room.eleanor && g.room.eleanor.anim.cur === 'dance', 20);
         await T.advance(2.0);
-        g.player.place(-1.55, 0.6, Math.atan2(1.6, 1.0));
+        g.player.place(-1.95, 0.25, Math.atan2(1.95, 1.25));
       },
+      each: edgar([
+        { t: 0.5, clip: 'walk', speed: 0.45, v: 0.63, face: toward(0, 1.5), turn: 3 },
+        { t: 1.5, clip: 'idle', v: 0, fade: 0.4 },
+        { t: 2.6, clip: 'reach', speed: 0.45, fade: 0.3 },
+        { t: 4.2, clip: 'idle', fade: 0.4 },
+      ]),
       cam: [
         { t: 0, pos: [-3.3, 1.3, 3.45], look: [0.2, 1.15, 1.0], fov: 48 },
         { t: 6.5, pos: [-2.85, 1.42, 3.0], look: [0.25, 1.2, 0.95], fov: 46 },
@@ -139,9 +222,20 @@
     S08: {
       len: 5.5, pre: 1.5,
       setup: (g) => {
-        g.debugStart('kitchen', 'fromHall', { flags: { lampLit: true }, items: ['lamp'] });
+        g.debugStart('kitchen', 'fromHall', { flags: { lampLit: true }, items: ['lamp', 'revolver'], ammo: 6 });
+        g.equip('revolver');
         strong(g);
       },
+      each: edgar([
+        { t: 0.5, clip: 'aim', face: towardM(cook), fade: 0.25 },
+        { t: 1.3, do: attack(cook) },
+        { t: 1.8, clip: 'aim', face: towardM(cook), fade: 0.1 },
+        { t: 2.15, do: attack(cook) },
+        { t: 2.65, clip: 'aim', face: towardM(cook), fade: 0.1 },
+        { t: 3.05, do: attack(cook) },
+        { t: 3.55, clip: 'aim', face: towardM(cook), fade: 0.1 },
+        { t: 4.6, free: true },
+      ]),
       ready: (g) => {
         g.player.place(-1.95, 0.05, Math.atan2(2.3, -1.8));
       },
@@ -164,6 +258,13 @@
         g.debugStart('cellar', 'fromHall', { flags: { lampLit: true, cellarSeen: true }, items: ['lamp'] });
         strong(g);
       },
+      each: edgar([
+        { t: 0, clip: 'stalk', v: 0.65 },
+        { t: 1.35, clip: 'startle', v: -0.8, face: towardM(nearest('crawler')) },
+        { t: 1.6, v: 0 },
+        { t: 2.0, clip: 'guard', face: towardM(nearest('crawler')) },
+        { t: 2.3, do: attack(nearest('crawler'), true) },
+      ]),
       ready: (g) => {
         g.player.place(-2.1, 1.05, PI / 2);
         const cs = g.room.monsters.filter((m) => m.type === 'crawler');
@@ -195,9 +296,17 @@
         h.root.visible = false;
       },
       cam: [
-        { t: 0, pos: [2.3, 0.95, 3.4], look: [-0.45, 2.2, -4.9], fov: 56 },
-        { t: 6.0, pos: [2.0, 0.92, 2.9], look: [-0.45, 2.6, -4.9], fov: 58 },
+        { t: 0, pos: [1.7, 0.95, 3.5], look: [-0.55, 2.2, -4.9], fov: 56 },
+        { t: 6.0, pos: [1.85, 0.95, 3.85], look: [-0.55, 2.6, -4.9], fov: 58 },
       ],
+      each: edgar([
+        { t: 0, clip: 'peer' },
+        { t: 1.15, clip: 'startle', v: -0.7 },
+        { t: 1.45, v: 0 },
+        { t: 1.9, clip: 'back', speed: 0.55, v: -0.4 },
+        { t: 3.1, v: 0 },
+        { t: 3.6, clip: 'guard', v: 0 },
+      ]),
       events: [
         { t: 1.0, run: (g) => { const h = g.room.horror; h.rise(true); h.roar = 1; } },
       ],
@@ -212,6 +321,12 @@
         strong(g);
       },
       ready: (g) => { g.testUse('frontDoor'); },
+      each: edgar([
+        { t: 2.35, clip: 'startle', v: -0.6 },
+        { t: 2.65, v: 0 },
+        { t: 3.0, clip: 'back', speed: 0.6, v: -0.45 },
+        { t: 3.85, clip: 'guard', v: 0 },
+      ]),
       cam: [
         { t: 0, pos: [1.15, 1.7, 2.3], look: [-0.4, 1.5, 5.2], fov: 50 },
         { t: 7.0, pos: [0.9, 1.68, 2.75], look: [-0.4, 1.45, 5.2], fov: 48 },

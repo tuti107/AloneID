@@ -177,9 +177,8 @@
     heartbeat(at('S05'), silence1, 62, 112, 0.9);
     // 5. hits where the cut asks for them (the window, the scream, the fast cuts)
     for (const t of hits) hit(t, 1.0);
-    // lighter stings for the hand and the cleaver
+    // a lighter sting for the hand (the revolver punctuates the kitchen itself)
     hit(at('S04', 1.225), 0.45);
-    hit(at('S08', 2.7), 0.5);
     // 6. after the scream: drums, shrieking strings, all cut dead at black
     const climaxFrom = at('S06', 0.875);
     for (let t = climaxFrom + 0.5; t < black - 0.2; t += 0.5) drum(t, 0.45 + 0.35 * ((t - climaxFrom) / (black - climaxFrom)));
