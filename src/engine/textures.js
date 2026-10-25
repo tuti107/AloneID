@@ -901,37 +901,53 @@ function mirror() {
   return c;
 }
 
-function hauntedMirror(withFace) {
-  const c = mirror();
-  const g = c.getContext('2d');
-  if (withFace) {
-    g.fillStyle = 'rgba(200,210,200,0.75)';
-    g.beginPath();
-    g.ellipse(16, 20, 7, 9, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = 'rgba(10,10,10,0.95)';
-    g.beginPath();
-    g.ellipse(13, 18, 2, 2.6, 0, 0, Math.PI * 2);
-    g.ellipse(19, 18, 2, 2.6, 0, 0, Math.PI * 2);
-    g.fill();
-    g.beginPath();
-    g.ellipse(16, 25, 2, 3, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = 'rgba(180,190,180,0.5)';
-    g.fillRect(9, 28, 14, 14);
+// Breath-fog on the glass with 'III' wiped through it by a finger:
+// transparent where the letters are, so the reflection shows through.
+function mirrorFog() {
+  const [c, g] = mk(64, 96);
+  const rand = rng(17);
+  for (let y = 0; y < 96; y++) {
+    for (let x = 0; x < 64; x++) {
+      const e = Math.min(x, 63 - x, y, 95 - y) / 12;
+      const a = 0.42 + 0.25 * (1 - Math.min(1, e)) + (rand() - 0.5) * 0.08;
+      g.fillStyle = `rgba(214,220,224,${a.toFixed(3)})`;
+      g.fillRect(x, y, 1, 1);
+    }
   }
-  g.strokeStyle = 'rgba(230,235,240,0.7)';
-  g.lineWidth = 1.5;
-  for (const x of [11, 16, 21]) {
-    g.beginPath();
-    g.moveTo(x, withFace ? 34 : 14);
-    g.lineTo(x + 0.5, withFace ? 44 : 30);
-    g.stroke();
+  g.globalCompositeOperation = 'destination-out';
+  g.lineCap = 'round';
+  g.lineWidth = 4;
+  g.strokeStyle = 'rgba(0,0,0,0.92)';
+  const line = (x0, y0, x1, y1) => { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
+  for (const x of [21, 32, 43]) line(x + (rand() - 0.5) * 2, 30, x + (rand() - 0.5) * 2, 62);
+  line(15, 29, 49, 28);
+  line(15, 63, 50, 64);
+  // drips running down from the strokes
+  g.lineWidth = 1.2;
+  for (const x of [17, 22, 31, 44, 48]) line(x, 64, x + (rand() - 0.5), 64 + 6 + rand() * 18);
+  g.globalCompositeOperation = 'source-over';
+  c.opts = { repeat: false, smooth: true };
+  return c;
+}
+
+// Old silvering: dark blotches creeping in from the edges, clear centre.
+function mirrorAge() {
+  const [c, g] = mk(64, 96);
+  const rand = rng(29);
+  const img = g.createImageData(64, 96);
+  for (let y = 0; y < 96; y++) {
+    for (let x = 0; x < 64; x++) {
+      const e = Math.min(x, 63 - x, y, 95 - y);
+      const n = rand();
+      let a = Math.max(0, 1 - e / 9) * 0.7 + (n > 0.985 ? 0.5 : 0);
+      if (e < 2) a = 0.85;
+      const i = (y * 64 + x) * 4;
+      img.data[i] = 22; img.data[i + 1] = 20; img.data[i + 2] = 16;
+      img.data[i + 3] = Math.round(Math.min(1, a) * 255);
+    }
   }
-  g.beginPath();
-  g.moveTo(8, withFace ? 34 : 14); g.lineTo(24, withFace ? 34 : 14);
-  g.moveTo(8, withFace ? 44 : 30); g.lineTo(24, withFace ? 44 : 30);
-  g.stroke();
+  g.putImageData(img, 0, 0);
+  c.opts = { repeat: false };
   return c;
 }
 
@@ -1069,8 +1085,8 @@ const BUILDERS = {
   runes: () => runes({ seed: 171 }),
   stairCarpet: () => stairCarpet({ seed: 181 }),
   mirror: () => mirror(),
-  mirrorHaunt: () => hauntedMirror(true),
-  mirrorIII: () => hauntedMirror(false),
+  mirrorFog: () => mirrorFog(),
+  mirrorAge: () => mirrorAge(),
   facePlayer: () => face({ skin: '#c89a78', mustache: '#3a2414', brows: '#2a1a10', lips: '#9a5e50' }),
   faceZombie: () => face({ skin: '#7a8a6a', eye: '#c8c090', lips: '#4a3a3a', mouth: '#1a0606', brows: '#3a3a30', kind: 'dead' }),
   faceZombieGlow: () => face({ eye: '#d8d090', kind: 'dead', glow: true }),
@@ -1082,6 +1098,7 @@ const BUILDERS = {
   faceGhoul: () => face({ skin: '#6e6e60', eye: '#ffd040', mouth: '#200808', kind: 'ghoul' }),
   faceGhoulGlow: () => face({ eye: '#ffd040', kind: 'ghoul', glow: true }),
   faceGhost: () => face({ skin: '#ffffff', kind: 'ghost' }),
+  faceDrowned: () => face({ skin: '#a8b6b2', kind: 'ghost' }),
 };
 
 function plainWood(seed, base, dark) {

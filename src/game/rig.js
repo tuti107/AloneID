@@ -565,6 +565,26 @@ export function humanClips() {
         p[ROOT + 2] = -0.05 * d;
       },
     },
+    // kneeling at a bath or a well, his right hand down in the water (held)
+    dip: {
+      dur: 6,
+      fn(t, p) {
+        const d = seg(t, 0, 0.6);
+        restArms(p, 0.1, -0.2);
+        setJ(p, 'lHip', -1.05 * d);
+        setJ(p, 'lKnee', 1.45 * d);
+        setJ(p, 'rHip', 0.25 * d);
+        setJ(p, 'rKnee', 1.75 * d);
+        setJ(p, 'spine', 0.55 * d);
+        setJ(p, 'neck', 0.35 * d);
+        setJ(p, 'rShoulder', -1.15 * d, 0, -0.12);
+        setJ(p, 'rElbow', -0.1 * d);
+        setJ(p, 'lShoulder', -0.35 * d, 0, 0.3);
+        setJ(p, 'lElbow', -0.6 * d);
+        p[ROOT + 1] = -0.5 * d;
+        p[ROOT + 2] = 0.05 * d;
+      },
+    },
     reach: {
       dur: 0.7,
       events: [{ t: 0.35, name: 'grab' }],
