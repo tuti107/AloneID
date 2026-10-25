@@ -88,6 +88,13 @@ export class Player {
     this.weaponObjs.poker = pw;
     this.weaponObjs.revolver = gw;
     this.weaponObjs.cutlass = cw;
+    const harp = ITEMS.harpoon.model();
+    harp.rotation.x = Math.PI / 2;
+    harp.position.set(0, -0.02, 0.02);
+    harp.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    const hw = new THREE.Group();
+    hw.add(harp);
+    this.weaponObjs.harpoon = hw;
     for (const w of Object.values(this.weaponObjs)) {
       w.visible = false;
       parts.rGrip.add(w);
@@ -371,9 +378,9 @@ export class Player {
       return;
     }
     if (w.kind === 'gun') {
-      if (g.inv.ammo <= 0) {
+      if (g.inv[w.ammo || 'ammo'] <= 0) {
         g.audio.sfx('click', { at: this.pos });
-        g.notify('弾が切れている。');
+        g.notify(w.ammo === 'harpoons' ? '銛が尽きている。' : '弾が切れている。');
         return;
       }
       const target = g.autoAim(this, 0.75, w.range);

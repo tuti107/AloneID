@@ -875,9 +875,51 @@ export class Stoker extends Monster {
   }
 }
 
+// Captain Ezekiel: he lunges across his cabin at a man a few paces off, is
+// not to be knocked about, and at half his strength calls up his crew.
+const EZEKIEL_T = { build: CH.buildEzekiel, hp: 260, dmg: 20, speed: 0.95, turn: 2.6, range: 1.45, sight: 14, cd: 1.1, radius: 0.42, voice: 'ezekiel', stagger: 60, poise: 2.5 };
+export class Ezekiel extends Monster {
+  constructor(game, room, o) {
+    super(game, room, { ...o, type: 'ezekiel', T: EZEKIEL_T });
+    this.lungeCd = 3;
+    this.summoned = false;
+    this.onHalf = o.onHalf || null;
+  }
+  turnTo(p) {
+    this.rot = Math.atan2(p.x - this.pos.x, p.z - this.pos.z);
+    this.sync();
+  }
+  damage(n, fromX, fromZ, knock = 1) {
+    const hit = super.damage(n, fromX, fromZ, knock);
+    if (this.alive && !this.summoned && this.hp < this.maxHp / 2) {
+      this.summoned = true;
+      if (this.onHalf) this.onHalf(this);
+    }
+    return hit;
+  }
+  special(dt, dist, toP) {
+    this.lungeCd -= dt;
+    if (this.lungeCd <= 0 && dist > 2.2 && dist < 4.6 && this.attackCd <= 0) {
+      this.lungeCd = 4 + Math.random() * 2;
+      this.rot = toP;
+      this.knock.set(Math.sin(toP) * 7, Math.cos(toP) * 7);
+      this.startAttack();
+      return true;
+    }
+    return false;
+  }
+  update(dt) {
+    super.update(dt);
+    const s = this.parts.star;
+    if (s) s.light.intensity = this.alive ? 2.5 + Math.sin(this.game.time * 5) * 1.0 : 0;
+    if (s && !this.alive) { s.mesh.visible = false; s.glow.visible = false; }
+  }
+}
+
 export function makeMonster(game, room, o) {
   if (o.type === 'thrall') return new Thrall(game, room, o);
   if (o.type === 'stoker') return new Stoker(game, room, o);
+  if (o.type === 'ezekiel') return new Ezekiel(game, room, o);
   if (o.type === 'vine') return new Vine(game, room, o);
   if (o.type === 'armor') return new Armor(game, room, o);
   if (o.type === 'preacher') return new Preacher(game, room, o);

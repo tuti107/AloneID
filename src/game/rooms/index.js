@@ -19,5 +19,8 @@ import lamproom from './lamproom.js';
 import nursery from './nursery.js';
 import graveyard from './graveyard.js';
 import crypt from './crypt.js';
+import tidecave from './tidecave.js';
+import gullcabin from './gullcabin.js';
+import shrine from './shrine.js';
 
-export const ROOMS = { attic, corridor, library, bathroom, bedroom, hall, dining, music, kitchen, cellar, cavern, gallery, chapel, conservatory, servants, boiler, tower, lamproom, nursery, graveyard, crypt };
+export const ROOMS = { attic, corridor, library, bathroom, bedroom, hall, dining, music, kitchen, cellar, cavern, gallery, chapel, conservatory, servants, boiler, tower, lamproom, nursery, graveyard, crypt, tidecave, gullcabin, shrine };

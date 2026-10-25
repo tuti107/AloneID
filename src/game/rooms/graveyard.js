@@ -216,6 +216,8 @@ export default {
   },
 
   async enter(r, g) {
+    // up out of the crypt with Clara, the shrine fallen in behind them
+    if (g.flags.finalEscape) { await g.ending(g.flags.boatPlaced ? 'dawn' : 'ember'); return; }
     if (g.flags.graveyardSeen) return;
     g.flags.graveyardSeen = true;
     g.lock();

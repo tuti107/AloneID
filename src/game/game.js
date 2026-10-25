@@ -16,6 +16,7 @@ import { DOCS, PROLOGUE, ENDINGS } from './text.js';
 import { TitleScene } from './title.js';
 import { burst } from './fx.js';
 import { MapModal } from './mapscreen.js';
+import { Clara } from './follower.js';
 
 const SAVE_KEY = 'ashcombe.save.';
 // v1: the house as it was, one act. v2: two acts (flags.act).
@@ -219,6 +220,7 @@ export class Game {
     if (!room) return;
     this.player.update(dt);
     for (const m of room.monsters) m.update(dt);
+    if (this.follower) this.follower.update(dt);
     room.update(dt);
     if (room.def.update) room.def.update(room, this, dt);
     this.checkTriggers();
@@ -234,7 +236,13 @@ export class Game {
       }
       this.escape.t -= dt;
       this.ui.setTimer(this.escape.t);
-      if (this.escape.t <= 0 && this.player.alive) {
+      if (this.escape.t <= 0 && this.player.alive && this.flags.finalEscape) {
+        // the shrine comes down between them: he lives, she does not
+        this.escape = null;
+        this.ui.setTimer(null);
+        this.stopFollower();
+        this.run(() => this.ending('tide'));
+      } else if (this.escape.t <= 0 && this.player.alive) {
         this.escape = null;
         this.ui.setTimer(null);
         this.deathText = this.flags.flameDrowned && this.act === 1 ? '押し寄せる黒い潮に、エドガーは呑み込まれた……' : '崩れ落ちる屋敷に、エドガーは呑み込まれた……';
@@ -390,6 +398,13 @@ export class Game {
   has(id) { return this.inv.has(id); }
 
   async give(id, o = {}) {
+    if (id === 'harpoons') {
+      this.inv.harpoons += o.count || 3;
+      this.audio.sfx('pickup');
+      if (!o.silent) await this.say(`${ITEMS.harpoons.name}を手に入れた。（${o.count || 3}本）`);
+      this.updateHud();
+      return;
+    }
     if (id === 'ammo') {
       this.inv.ammo += o.count || 6;
       this.audio.sfx('pickup');
@@ -410,7 +425,8 @@ export class Game {
   }
 
   updateHud() {
-    this.ui.setAmmo(this.inv.equipped === 'revolver' ? this.inv.ammo : null);
+    const w = this.inv.equipped ? ITEMS[this.inv.equipped].weapon : null;
+    this.ui.setAmmo(w && w.kind === 'gun' ? this.inv[w.ammo || 'ammo'] : null, w && w.ammo === 'harpoons' ? '銛' : '弾');
   }
 
   walk(x, z) {
@@ -474,6 +490,20 @@ export class Game {
 
   hasRoom(id) { return !!ROOMS[id]; }
 
+  // Clara as a scene actor (bound on the shrine's altar), and as the one
+  // following him out of it.
+  makeClara() { return new Clara(this); }
+  startFollower() {
+    if (this.follower) return;
+    this.follower = new Clara(this);
+    if (this.room) this.follower.enter(this.room, this.player);
+  }
+  stopFollower() {
+    if (!this.follower) return;
+    this.follower.leave();
+    this.follower = null;
+  }
+
   // A way on that is not built yet (the game is growing act by act).
   async notYet() {
     await this.say('扉の向こうから、潮の匂いが吹き込んでくる……。\n（この先は、次の更新で追加されます）');
@@ -504,6 +534,8 @@ export class Game {
     this.director.update(this.player.pos, 0, true);
     this.audio.setAmbience(room.ambience || room.def.ambience || 'house', room);
     if (!o.quiet) this.ui.showRoomName(room.name);
+    // Clara, coming out with him, comes in behind him
+    if (this.follower) { this.follower.leave(); this.follower.enter(room, this.player); }
     room.visited = true;
     room.usedAt = this.roomClock = (this.roomClock || 0) + 1;
     this.flags['visited:' + id] = true;
@@ -661,7 +693,8 @@ export class Game {
     const plan = this.actionPlan();
     if (plan && plan.kind === 'attack') {
       this.promptVerb = plan.gun ? '撃つ' : '攻撃';
-      this.ui.setPrompt(`<b>${this.promptVerb}</b>${plan.gun ? `残弾 ${this.inv.ammo}` : ''}`);
+      const w = plan.gun ? ITEMS[this.inv.equipped].weapon : null;
+      this.ui.setPrompt(`<b>${this.promptVerb}</b>${w ? `${w.ammo === 'harpoons' ? '残りの銛' : '残弾'} ${this.inv[w.ammo || 'ammo']}` : ''}`);
     } else if (plan) {
       const it = plan.it;
       this.promptVerb = typeof it.verb === 'function' ? it.verb(this) : it.verb;
@@ -729,10 +762,12 @@ export class Game {
   }
 
   fireGun(p) {
-    if (this.inv.ammo <= 0) return;
-    this.inv.ammo--;
+    const w = ITEMS[this.inv.equipped] ? ITEMS[this.inv.equipped].weapon : null;
+    const key = (w && w.ammo) || 'ammo';
+    if (this.inv[key] <= 0) return;
+    this.inv[key]--;
     this.updateHud();
-    this.audio.sfx('gunshot', { at: p.pos });
+    this.audio.sfx((w && w.sfx) || 'gunshot', { at: p.pos });
     this.flash(0.35, [1.0, 0.85, 0.6]);
     this.player.muzzle.intensity = 40;
     this.shake(0.05, 0.12);
@@ -740,7 +775,7 @@ export class Game {
     if (t) {
       if (t.invulnerable) this.notify('弾がすり抜けた……！');
       else {
-        t.damage(34, p.pos.x, p.pos.z, 2.0);
+        t.damage((w && w.dmg) || 34, p.pos.x, p.pos.z, w && w.ammo ? 4.0 : 2.0);
         this.audio.sfx('hitFlesh', { at: t.pos, delay: 0.03 });
         const dx = t.pos.x - p.pos.x, dz = t.pos.z - p.pos.z, l = Math.hypot(dx, dz) || 1;
         burst(this.room, t.pos.x - (dx / l) * 0.25, t.pos.y + 1.15, t.pos.z - (dz / l) * 0.25, t.type === 'crawler' || t.type === 'ghoul' ? 'ichor' : 'blood', { dir: [dx / l, dz / l], n: 14 });
@@ -854,6 +889,12 @@ export class Game {
   }
 
   async throwItem(id) {
+    if (id === 'lantern') {
+      if (!this.flags.lanternLit) { await this.say('火の入っていないランタンを投げても、意味がない。'); return; }
+      if (this.room.def.onThrowLamp) { await this.room.def.onThrowLamp(this.room, this); return; }
+      await this.say('いや……この火を失うわけにはいかない。');
+      return;
+    }
     if (id !== 'lamp') { await this.say('投げても仕方がない。'); return; }
     if (!this.flags.lampLit) { await this.say('火の点いていないランプを投げても、意味がない。'); return; }
     if (this.room.def.onThrowLamp) { await this.room.def.onThrowLamp(this.room, this); return; }
@@ -1099,6 +1140,7 @@ export class Game {
     this.lockCount = 0;
     this.escape = null;
     this.ui.setTimer(null);
+    if (this.follower) { this.follower.leave(); this.follower = null; }
     this.player = new Player(this);
     this.transitioning = false;
     this.gfx.u.uWarp.value = 0;
@@ -1120,6 +1162,7 @@ export class Game {
     this.player.place(d.x, d.z, d.rot);
     this.director.update(this.player.pos, 0, true);
     if (d.escape) this.escape = { t: Math.max(d.escape, 35) }; // never restore into a hopeless countdown
+    if (this.flags.claraFollowing) this.startFollower();
     this.checkpoint = this.serialize();
     this.audio.music(this.escape ? 'escape' : null);
     this.gfx.u.uFade.value = 1;

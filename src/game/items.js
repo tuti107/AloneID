@@ -214,6 +214,34 @@ function cutlass() {
   F.sp(g, brass(), 0.022, 0, 0.86, 0, 6, 4);
   return g;
 }
+function harpoonModel() {
+  const g = G();
+  F.bx(g, M('woodBlack'), 0.06, 0.06, 0.5, 0, 0, -0.1);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.6, 8), M('iron', { phong: true, shininess: 40 }));
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.06, 0.35);
+  g.add(barrel);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 4), M('iron'));
+  tip.rotation.x = Math.PI / 2;
+  tip.position.set(0, 0.06, 0.7);
+  g.add(tip);
+  return g;
+}
+function harpoonBundle() {
+  const g = G();
+  for (let i = 0; i < 3; i++) {
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.7, 5), M('iron'));
+    h.rotation.z = Math.PI / 2;
+    h.position.set(0, 0.012 + i * 0.024, (i - 1) * 0.03);
+    g.add(h);
+  }
+  return g;
+}
+export function seaStarModel() {
+  const g = starStoneModel();
+  g.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.color && o.material.color.set(0x5aa8c8); } });
+  return g;
+}
 function recordDisc() {
   const g = G();
   const rec = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.006, 20), [M('woodBlack'), M('recordLabel', { ts: [1, 1] }), M('woodBlack')]);
@@ -279,7 +307,7 @@ export const ITEMS = {
   coldKey: { name: 'ハーロウの部屋の鍵', key: true, actions: ['use', 'examine'], desc: '「ハーロウ」と書いた札の付いた、小さな真鍮の鍵。肉の脂でぬめっている。', model: keyModel(brass, 0.9) },
   keyring: { name: 'ハーロウの鍵束', key: true, actions: ['use', 'examine'], desc: '執事ハーロウの鍵束。「ボイラー室」と「灯室」の札が下がっている。', model: keyring },
   lantern: {
-    name: '嵐のランタン', key: true, actions: ['use', 'examine'],
+    name: '嵐のランタン', key: true, actions: ['use', 'examine', 'throw'],
     desc: (g) => (g.flags.lanternLit ? '塔の消えない火を宿した、船乗りの嵐のランタン。\n炎は、雨にも風にも揺らがない。潮の下僕は、この火を恐れる。' : '船乗りが使う、鉄枠の嵐のランタン。中は空っぽで、油も火もない。'),
     model: () => F.stormLantern(),
   },
@@ -289,6 +317,13 @@ export const ITEMS = {
     name: 'エゼキエルのカトラス', actions: ['equip', 'examine'], weapon: { kind: 'melee', dmg: 28, range: 1.5, clip: 'swing', blade: true },
     desc: '反りのある船乗りの刀。刃に、見慣れない星の紋が刻まれている。\n火かき棒より、ずっと深く斬り込める。', model: cutlass,
   },
+  harpoon: {
+    name: '銛撃ち銃', actions: ['equip', 'examine'], weapon: { kind: 'gun', dmg: 85, range: 12, clip: 'shoot', ammo: 'harpoons', sfx: 'harpoonShot' },
+    desc: (g) => `捕鯨船の、肩に担ぐ銛撃ち銃。残りの銛 ${g.inv.harpoons || 0} 本。\n一撃は重いが、銛は数えるほどしかない。`, model: harpoonModel,
+  },
+  harpoons: { name: '銛', actions: ['examine'], desc: '銛撃ち銃の銛。', model: harpoonBundle },
+  seastar: { name: '海の星の石', key: true, actions: ['use', 'examine'], desc: '青く澄んだ、五芒星の石。星の石の片割れ。\nエゼキエルの胸で、百二十年脈打っていた。', model: seaStarModel },
+  gullLog: { name: '黒鴎号の航海日誌', actions: ['read'], doc: 'gullLog', model: book(0x2a3a4a) },
   canvas: { name: 'ジョナの肖像のカンバス', key: true, actions: ['use', 'examine'], desc: '丸めた古いカンバス。広げると、厳めしい老人が描かれている。\n裏に「Ｊ・Ａ　一八三五年」とある。', model: rolledCanvas },
   brassKey: { name: '真鍮の小さな鍵', key: true, actions: ['use', 'examine'], desc: '小さな真鍮の鍵。机の引き出しのものだろうか。', model: keyModel(brass, 0.8) },
   bedroomKey: { name: '寝室の鍵', key: true, actions: ['use', 'examine'], desc: '「主寝室」と刻まれた鉄の鍵。', model: keyModel(M('iron'), 1.1) },
@@ -308,6 +343,7 @@ export class Inventory {
     this.items = [];
     this.equipped = null;
     this.ammo = 0;
+    this.harpoons = 0;
   }
   has(id) { return this.items.includes(id); }
   add(id) { if (!this.items.includes(id)) this.items.push(id); }
@@ -315,10 +351,11 @@ export class Inventory {
     this.items = this.items.filter((i) => i !== id);
     if (this.equipped === id) this.equipped = null;
   }
-  serialize() { return { items: this.items.slice(), equipped: this.equipped, ammo: this.ammo }; }
+  serialize() { return { items: this.items.slice(), equipped: this.equipped, ammo: this.ammo, harpoons: this.harpoons }; }
   restore(d) {
     this.items = d.items.slice();
     this.equipped = d.equipped;
     this.ammo = d.ammo;
+    this.harpoons = d.harpoons || 0;
   }
 }

@@ -27,6 +27,8 @@ export class Horror {
     this.fires = [];
     this.root.visible = false;
     this.edge = o.edge; // z of the pool edge
+    this.minX = o.minX ?? -5.2; // no reaching him west of this
+    this.reach = o.reach ?? 9.5;
     room.dynamic.add(this.root);
     // lit from below, off the pool, cold from above, and red from its maw
     this.light = new THREE.PointLight(0x9aa458, 0, 16, 1.4);
@@ -60,6 +62,10 @@ export class Horror {
       this.pos.y = Math.max(-1.3, this.pos.y - dt * 0.12);
       b.core.rotation.z = Math.sin(t * 9) * 0.15;
       if (this.pos.y < -5) { this.state = 'gone'; this.root.visible = false; }
+    } else if (this.state === 'falling') {
+      this.pos.y -= dt * (0.3 + t * 0.6);
+      b.core.rotation.z = Math.sin(t * 9) * 0.15;
+      if (this.pos.y < -14) { this.state = 'gone'; this.root.visible = false; }
     } else if (this.state === 'sinking') {
       // back into the pool, unhurried, watching him all the way down
       this.pos.y -= dt * (0.25 + Math.min(1, t / 3) * 0.3);
@@ -67,19 +73,20 @@ export class Horror {
     } else {
       this.pos.y = -0.6 + Math.sin(t * 0.8) * 0.12;
     }
-    const writhe = this.state === 'sealed' ? 2.2 : this.state === 'burning' ? 3.5 : this.state === 'sinking' ? 0.6 : 1;
+    const burning = this.state === 'burning' || this.state === 'falling';
+    const writhe = this.state === 'sealed' ? 2.2 : burning ? 3.5 : this.state === 'sinking' ? 0.6 : 1;
     b.core.rotation.y = Math.sin(t * 0.4) * 0.2;
     b.core.rotation.z = Math.sin(t * 0.33) * 0.05 * writhe;
     // the flesh heaves
     b.mass.scale.set(1 + Math.sin(t * 2.1) * 0.03 * writhe, 1 + Math.sin(t * 1.7) * 0.035 * writhe, 1 + Math.sin(t * 2.6) * 0.02 * writhe);
     // the maw breathes; it opens wide to roar, and screams when sealed or burning
     this.roar = Math.max(0, this.roar - dt * 0.8);
-    const scream = this.state === 'sealed' || this.state === 'burning';
+    const scream = this.state === 'sealed' || burning;
     const open = Math.min(1, 0.25 + 0.2 * Math.sin(t * 1.3) + this.roar + (scream ? 0.55 + Math.sin(t * 23) * 0.08 : 0));
     const m = b.maw;
     m.throat.scale.x = 0.07 + open * 0.32;
     for (const row of m.rows) row.position.x = row.userData.side * (0.03 + open * 0.2);
-    m.light.intensity = this.state === 'burning' ? 0 : 0.8 + open * 2.6;
+    m.light.intensity = burning ? 0 : 0.8 + open * 2.6;
     // human arms reaching out of it, fingers clutching at nothing
     b.arms.forEach((a, i) => {
       const ph = t * (1.1 + i * 0.13) + a.phase;
@@ -114,8 +121,8 @@ export class Horror {
     }
     const sealed = this.state === 'sealed';
     b.sclera.color.setHex(sealed ? 0xd85040 : 0xc0aa44);
-    this.light.intensity = this.state === 'burning' ? 0 : 4.5 + Math.sin(t * 3) * 1.2;
-    this.topLight.intensity = this.state === 'burning' ? 0 : 11;
+    this.light.intensity = burning ? 0 : 4.5 + Math.sin(t * 3) * 1.2;
+    this.topLight.intensity = burning ? 0 : 11;
     this.root.position.copy(this.pos);
     // attacks
     if ((this.state === 'idle' || sealed) && g.player.alive) {
@@ -123,7 +130,7 @@ export class Horror {
       if (this.attackT <= 0) {
         this.attackT = sealed ? 3.4 : 2.3 + Math.random() * 0.8;
         const reach = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
-        if (reach < 9.5 && p.x > -5.2) this.slam(p.x + (Math.random() - 0.5) * 0.6, p.z + (Math.random() - 0.5) * 0.6);
+        if (reach < this.reach && p.x > this.minX) this.slam(p.x + (Math.random() - 0.5) * 0.6, p.z + (Math.random() - 0.5) * 0.6);
       }
     }
     for (let i = this.slams.length - 1; i >= 0; i--) {
@@ -211,6 +218,12 @@ export class Horror {
     for (const f of this.fires) this.root.remove(f);
     this.fires = [];
     if (this.fireLight) { this.root.remove(this.fireLight); this.fireLight = null; }
+  }
+
+  // Burnt through, it goes down into the dark below, still burning.
+  fall() {
+    this.state = 'falling';
+    this.t = 0;
   }
 
   ignite() {

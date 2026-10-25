@@ -78,10 +78,10 @@ export class UI {
     this.roomNameTimer = 2.6;
   }
 
-  setAmmo(n) {
+  setAmmo(n, label = '弾') {
     if (n === null) this.ammoEl.classList.remove('on');
     else {
-      this.ammoEl.textContent = `弾 ${n}`;
+      this.ammoEl.textContent = `${label} ${n}`;
       this.ammoEl.classList.add('on');
     }
   }

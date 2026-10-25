@@ -376,6 +376,24 @@ export class Room {
     return l;
   }
 
+  // A fake volumetric shaft of light: an open cone from (x,y,z) down to a
+  // disc round (tx,ty,tz), fading out as it goes.
+  shaft(x, y, z, tx, ty, tz, o = {}) {
+    const top = new THREE.Vector3(x, y, z), bot = new THREE.Vector3(tx, ty, tz);
+    const geo = new THREE.CylinderGeometry(o.r0 ?? 0.3, o.r ?? 1.5, top.distanceTo(bot), 16, 1, true);
+    const c = new THREE.Color(o.color ?? 0x8aa0c8), a = o.alpha ?? 0.05;
+    const pos = geo.attributes.position, col = [];
+    for (let i = 0; i < pos.count; i++) col.push(c.r, c.g, c.b, pos.getY(i) > 0 ? a : 0);
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    m.position.copy(top).add(bot).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), top.sub(bot).normalize());
+    m.userData.noShadow = true;
+    m.renderOrder = 5;
+    this.dynamic.add(m);
+    return m;
+  }
+
   shadowify(l, q) {
     const size = q === 'hi' ? 1024 : 512;
     l.castShadow = true;

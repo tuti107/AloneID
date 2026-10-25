@@ -43,6 +43,11 @@ export class NavGrid {
     return [Math.max(0, Math.min(this.w - 1, i)), Math.max(0, Math.min(this.h - 1, j))];
   }
 
+  blockedAt(x, z) {
+    const [i, j] = this.cellOf(x, z);
+    return !!this.blocked[j * this.w + i];
+  }
+
   nearestFree(i, j) {
     const { w, h } = this;
     if (!this.blocked[j * w + i]) return [i, j];

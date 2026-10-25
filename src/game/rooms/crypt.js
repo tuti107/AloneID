@@ -26,6 +26,7 @@ export default {
     for (let i = 0; i < 6; i++) r.box('stoneWall', 8.0, 0.22, 0.3, 0, H - 0.22, -5.4 + i * 2.2, { cast: false });
     r.door(0, 6.5, Math.PI, { to: 'graveyard', entry: 'fromCrypt', w: 1.1, h: 2.2, label: '墓地への扉', wallMat: 'stoneWall', panel: 'iron', panelInset: 'rust', sound: 'doorHeavy' });
     r.entry('fromGraveyard', 0, 5.8, Math.PI);
+    r.entry('fromCave', 0, -5.6, 0);
 
     // ---- the niches: two rows of coffin ends down both long walls
     const niche = M('soot');

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { frustum } from '../engine/geom.js';
 import { C, spriteMat } from './mats.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { Animator, buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, armorClips, preacherClips, setJ, ROOT } from './rig.js';
+import { Animator, buildHumanoid, humanClips, zombieClips, ghoulClips, ghostClips, armorClips, preacherClips, setJ, addJ, ROOT } from './rig.js';
 import { loft, shell, ringAt, surfacePoint, headGeo } from './body.js';
 import { tex } from '../engine/textures.js';
 import { rng } from '../engine/util.js';
@@ -235,6 +235,142 @@ export function buildAncestor({ seed = 1 } = {}) {
     },
   });
   return { parts, clips: zombieClips({ hunch: 0.3 }) };
+}
+
+// ------------------------------------------------------------------ Ezekiel
+// Captain Ezekiel Ashcombe of the Black Gull, a hundred and twenty years in
+// the sea: a big man gone green under a rotten captain's coat and tricorn,
+// weed for a beard, barnacles up his arms, his cutlass, and the other star
+// stone burning blue in his chest where his heart was.
+export function buildEzekiel() {
+  const coat = 0x1a2030, coatDark = 0x0e121a, gold = 0x9a7a30, skin = 0x6a8478;
+  const parts = buildHumanoid({
+    hipY: 1.0, thigh: 0.48, shin: 0.47, torsoLen: 0.62,
+    chest: [0.5, 0.3], waist: [0.45, 0.28], pelvis: [0.38, 0.16, 0.26], head: [0.21, 0.245, 0.225],
+    shoulderX: 0.245, armW: 0.11, legW: 0.15, upperArm: 0.36, foreArm: 0.33, handW: 0.095, hipX: 0.12, neckR: 0.05,
+    headShape: { jaw: 1.2 },
+    colors: { torso: coat, arms: coat, legs: 0x2a2620, pelvis: coat, skin, shoes: 0x0c0b0a, hair: 0x8a8a7c, hands: skin },
+    face: 'faceEzekiel', faceGlow: 'faceEzekielGlow',
+    hair: { front: 0.25, side: 0.0, back: -0.65, thick: 0.012 },
+    extras(p, spec) {
+      const j = p.joints, T = p.surf.torso, L = spec.torsoLen;
+      const gm = S(gold), cd = S(coatDark);
+      // the coat's long skirts, its lapels and buttons, a sash
+      for (const side of ['l', 'r']) legSkirt(p, side, S(coat, true), [[0.12, 0.17, 0.18], [-0.1, 0.18, 0.19, -0.004], [-0.45, 0.2, 0.21, -0.01], [-0.8, 0.21, 0.22, -0.016]]);
+      plate(j.spine, cd, T, [[L * 0.35, -0.5, -0.18], [L * 0.95, -0.7, -0.2]], 3, 0.008);
+      plate(j.spine, cd, T, mirror([[L * 0.35, -0.5, -0.18], [L * 0.95, -0.7, -0.2]]), 3, 0.008);
+      for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) {
+        const b = surfacePoint(T, L * (0.25 + i * 0.16), sx * 0.24, 0.01);
+        box(j.spine, gm, 0.022, 0.022, 0.012, b.x, b.y, b.z);
+      }
+      band(j.spine, S(0x5a1a14), T, 0.02, 0.09, 0.012);
+      // epaulettes, gone green
+      for (const sx of [-1, 1]) {
+        const e = box(j.spine, S(0x6a6a3a), 0.14, 0.03, 0.12, sx * 0.21, L - 0.02, 0);
+        e.rotation.z = -sx * 0.25;
+      }
+      // the tricorn: a round crown, its brim cocked up into three sides
+      const felt = S(0x121216, true);
+      onHead(p, loft([[0, 0.122, 0.132], [0.06, 0.118, 0.128], [0.105, 0.096, 0.104], [0.13, 0, 0]], 12), felt, 0, 0.42, -0.05);
+      const brim = onHead(p, loft([[0, 0.15, 0.15], [0.085, 0.27, 0.27]], 3, { caps: false }), felt, 0, 0.42, -0.05);
+      brim.rotation.y = Math.PI / 2;
+      const trim = onHead(p, loft([[0.083, 0.272, 0.272], [0.093, 0.275, 0.275]], 3, { caps: false }), S(gold, true), 0, 0.42, -0.05);
+      trim.rotation.y = Math.PI / 2;
+      // weed for a beard, and down his front
+      const weed = S(0x1e2e1a, true);
+      for (let i = 0; i < 7; i++) {
+        const st = onHead(p, loft([[0, 0.02, 0.008], [-0.18 - (i % 3) * 0.06, 0.012, 0.005], [-0.3 - (i % 3) * 0.06, 0, 0]], 4), weed, (i - 3) * 0.22, -0.55, 0.6);
+        st.rotation.z = (i - 3) * 0.08;
+      }
+      // barnacles up the forearms
+      for (let i = 0; i < 10; i++) {
+        const side = i % 2 ? 'l' : 'r';
+        const b = surfacePoint(p.surf.foreArm, -spec.foreArm * (0.2 + (i % 5) * 0.14), (i * 1.7) % 6.2, 0.006);
+        const bn = add(j[side + 'Elbow'], new THREE.ConeGeometry(0.018, 0.022, 5), S(0xb2aea2), b.x, b.y, b.z);
+        bn.rotation.x = Math.PI / 2;
+      }
+      // the star where his heart was
+      const star = starShape(0.06, 0.012);
+      const starM = new THREE.MeshBasicMaterial({ color: 0x7ad8f0 });
+      const s = surfacePoint(T, L * 0.62, 0.25, 0.012);
+      const sm = add(j.spine, star, starM, s.x, s.y, s.z);
+      sm.rotation.y = 0.25;
+      const glow = new THREE.Sprite(spriteMat('glow', 0x6ad0f0, 0.7));
+      glow.scale.set(0.36, 0.36, 1);
+      glow.position.set(s.x, s.y, s.z + 0.04);
+      j.spine.add(glow);
+      const light = new THREE.PointLight(0x6ad0f0, 3, 4, 2);
+      light.position.set(s.x, s.y, s.z + 0.2);
+      j.spine.add(light);
+      p.star = { mesh: sm, glow, light };
+      // his cutlass
+      const blade = new THREE.Group();
+      p.rGrip.add(blade);
+      const steel = C(0x8a9094, { phong: true, shininess: 70, specular: 0xaaaaaa });
+      box(blade, steel, 0.06, 0.012, 0.52, 0, 0, 0.35);
+      const tip = box(blade, steel, 0.055, 0.012, 0.2, 0.012, 0, 0.69);
+      tip.rotation.y = 0.12;
+      box(blade, C(gold), 0.13, 0.025, 0.035, 0, 0, 0.075);
+      box(blade, C(gold), 0.02, 0.1, 0.14, -0.05, -0.04, 0.0);
+      p.weapon = blade;
+    },
+  });
+  const clips = zombieClips({ hunch: 0.08 });
+  // he still stands like the master of his ship: square, head up, the
+  // cutlass low and ready
+  clips.idle = {
+    loop: true,
+    fn(t, p) {
+      setJ(p, 'spine', 0.04 + Math.sin(t * 0.9) * 0.02, Math.sin(t * 0.4) * 0.06, 0);
+      setJ(p, 'neck', -0.06, Math.sin(t * 0.5) * 0.14, 0.05);
+      setJ(p, 'lShoulder', 0.08, 0, 0.14);
+      setJ(p, 'lElbow', -0.3);
+      setJ(p, 'rShoulder', -0.4, 0, -0.2);
+      setJ(p, 'rElbow', -0.7);
+      setJ(p, 'lHip', 0.06);
+      setJ(p, 'rHip', -0.1);
+      setJ(p, 'lKnee', 0.06);
+      setJ(p, 'rKnee', 0.12);
+    },
+  };
+  const walk = humanClips().walk;
+  clips.walk = {
+    ...walk,
+    fn(t, p) {
+      walk.fn(t, p);
+      addJ(p, 'rShoulder', -0.35, 0, -0.1);
+      addJ(p, 'rElbow', -0.5);
+    },
+  };
+  // a cutlass cut, from high on the right across and down
+  clips.attack = {
+    dur: 1.0,
+    events: [{ t: 0.55, name: 'hit' }],
+    fn(t, p) {
+      const e = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+      const a = e(t / 0.42), b = e((t - 0.42) / 0.18), c = e((t - 0.7) / 0.3);
+      const up = a * (1 - b), down = b * (1 - c);
+      setJ(p, 'rShoulder', -2.6 * up - 0.9 * down - 0.2, 0.6 * up - 0.8 * down, -0.4 * up);
+      setJ(p, 'rElbow', -1.2 * up - 0.2);
+      setJ(p, 'spine', 0.05 + 0.25 * down, 0.4 * up - 0.5 * down, 0);
+      setJ(p, 'lShoulder', 0.3 * down, 0, 0.3);
+      setJ(p, 'lHip', -0.35 * down);
+      setJ(p, 'lKnee', 0.35 * down + 0.1);
+    },
+  };
+  return { parts, clips };
+}
+
+// A flat five-pointed star, for the stones.
+function starShape(r, depth) {
+  const sh = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+    const rr = i % 2 ? r * 0.45 : r;
+    if (i === 0) sh.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    else sh.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  return new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false });
 }
 
 // ------------------------------------------------------------------ armour
