@@ -2,6 +2,7 @@
 // dial and on-screen touch controls. Modals are stacked by the Game.
 import { ITEMS, itemDesc } from './items.js';
 import { DOCS } from './text.js';
+import { RUN_TILT } from '../engine/input.js';
 
 export function el(tag, attrs = {}, parent = null, html = null) {
   const e = document.createElement(tag);
@@ -49,17 +50,32 @@ export class UI {
     const W = Math.max(64, this.app.clientWidth - pl - pr), H = Math.max(48, this.app.clientHeight - pt - pb);
     const touch = this.touch.enabled;
     const portrait = H > W * 1.05;
-    let availH = H;
-    if (touch && portrait) availH = Math.max(H * 0.5, H - Math.min(300, H * 0.42));
-    const scale = Math.max(1, Math.min(W / 4, availH / 3));
-    const sw = Math.floor(scale * 4), sh = Math.floor(scale * 3);
+    let sw, sh, vh, top;
+    // A phone held upright: the picture goes at the top, full width, and the
+    // stage carries on below it to just above the controls, so messages and
+    // menus get room of their own instead of covering the scene.
+    const ctrlH = Math.round(Math.min(260, Math.max(200, H * 0.3)));
+    const tallScale = Math.max(1, Math.min(W / 4, (H - ctrlH - 120) / 3));
+    const tall = touch && portrait && H - ctrlH - Math.floor(tallScale * 3) >= 120;
+    if (tall) {
+      sw = Math.floor(tallScale * 4); vh = Math.floor(tallScale * 3);
+      sh = H - ctrlH;
+      top = pt;
+    } else {
+      let availH = H;
+      if (touch && portrait) availH = Math.max(H * 0.5, H - Math.min(300, H * 0.42));
+      const scale = Math.max(1, Math.min(W / 4, availH / 3));
+      sw = Math.floor(scale * 4); vh = sh = Math.floor(scale * 3);
+      top = pt + (touch && portrait ? Math.floor(Math.max(0, (availH - sh) / 2)) : Math.floor((H - sh) / 2));
+    }
     const left = pl + Math.floor((W - sw) / 2);
-    const top = pt + (touch && portrait ? Math.floor(Math.max(0, (availH - sh) / 2)) : Math.floor((H - sh) / 2));
+    this.app.classList.toggle('tall', tall);
     Object.assign(this.stage.style, { left: left + 'px', top: top + 'px', width: sw + 'px', height: sh + 'px' });
     this.stage.style.setProperty('--u', (sw / 320).toFixed(3) + 'px');
+    this.stage.style.setProperty('--vh', vh + 'px');
     this.app.style.setProperty('--u', (sw / 320).toFixed(3) + 'px');
-    this.game.gfx.resizeCanvas(sw, sh);
-    this.touch.layout(W, H, { left: left - pl, top: top - pt, width: sw, height: sh }, portrait, pl, pt);
+    this.game.gfx.resizeCanvas(sw, vh);
+    this.touch.layout(W, H, { left: left - pl, top: top - pt, width: sw, height: sh }, portrait, pl, pt, tall);
     this.stageRect = { left, top, width: sw, height: sh };
   }
 
@@ -233,7 +249,8 @@ export class ChoiceModal extends Modal {
   }
 }
 
-// Generic list menu. items: [{label, value(), onSelect(), onChange(dir), disabled}]
+// Generic list menu. items: [{label, value(), onSelect(), onChange(dir, wrap), disabled}]
+// A tap or confirm on a setting steps it with wrap set, going round past the end.
 export class MenuModal extends Modal {
   constructor(game, o) {
     super(game);
@@ -259,7 +276,7 @@ export class MenuModal extends Modal {
       li.onclick = () => {
         if (it.disabled) return;
         this.sel = i;
-        if (it.onChange && !it.onSelect) { it.onChange(1); this.game.audio.ui('move'); this.build(); return; }
+        if (it.onChange && !it.onSelect) { it.onChange(1, true); this.game.audio.ui('move'); this.build(); return; }
         this.choose();
       };
     });
@@ -282,7 +299,7 @@ export class MenuModal extends Modal {
     if (!it || it.disabled) return;
     this.game.audio.ui('ok');
     if (it.onSelect) it.onSelect(this);
-    else if (it.onChange) { it.onChange(1); this.build(); }
+    else if (it.onChange) { it.onChange(1, true); this.build(); }
   }
   update(dt, input) {
     if (input.pressed('up')) this.move(-1);
@@ -563,6 +580,8 @@ class TouchControls {
     const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
     this.enabled = !!coarse;
     this.el = el('div', { id: 'touch' }, app);
+    // Touching anywhere in this area brings the stick to the thumb.
+    this.zone = el('div', { class: 'zone' }, this.el);
     this.pad = el('div', { class: 'pad' }, this.el);
     this.knob = el('div', { class: 'knob' }, this.pad);
     this.btns = {};
@@ -581,40 +600,55 @@ class TouchControls {
     B('inventory', '持物', ['inventory', 'cancel'], 'mid');
     B('pause', '≡', ['pause'], 'small');
     this.padId = null;
+    this.rest = { x: 0, y: 0 };
+    const PR = 75;
     const padMove = (e) => {
       const r = this.pad.getBoundingClientRect();
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       let dx = (e.clientX - cx) / (r.width / 2), dy = (e.clientY - cy) / (r.height / 2);
       const l = Math.hypot(dx, dy);
       if (l > 1) { dx /= l; dy /= l; }
-      this.knob.style.left = 50 + dx * 32 + '%';
-      this.knob.style.top = 50 + dy * 32 + '%';
-      const dead = 0.25;
-      input.touchStick = l > dead ? { x: dx, y: dy } : null;
-      this.knob.classList.toggle('run', l > 0.92);
+      this.knob.style.left = 50 + dx * 34 + '%';
+      this.knob.style.top = 50 + dy * 34 + '%';
+      input.touchStick = l > 0.2 ? { x: dx, y: dy } : null;
+      this.knob.classList.toggle('run', l > RUN_TILT);
       const th = 0.38;
       input.setTouch('up', dy < -th);
       input.setTouch('down', dy > th);
       input.setTouch('left', dx < -th);
       input.setTouch('right', dx > th);
     };
-    const padEnd = () => {
+    const padStart = (e) => {
+      e.preventDefault();
+      if (this.padId !== null) return;
+      this.padId = e.pointerId;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      // the stick centres on the thumb, wherever it lands
+      const x = Math.max(PR + 4, Math.min(window.innerWidth - PR - 4, e.clientX));
+      const y = Math.max(PR + 4, Math.min(window.innerHeight - PR - 4, e.clientY));
+      this.pad.style.left = x - PR + 'px';
+      this.pad.style.top = y - PR + 'px';
+      this.pad.classList.add('live');
+      padMove(e);
+    };
+    const padEnd = (e) => {
+      if (e.pointerId !== this.padId) return;
       this.padId = null;
+      this.pad.classList.remove('live');
+      this.pad.style.left = this.rest.x + 'px';
+      this.pad.style.top = this.rest.y + 'px';
       this.knob.classList.remove('run');
       this.knob.style.left = '50%';
       this.knob.style.top = '50%';
       input.touchStick = null;
       for (const a of ['up', 'down', 'left', 'right']) input.setTouch(a, false);
     };
-    this.pad.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      this.padId = e.pointerId;
-      this.pad.setPointerCapture(e.pointerId);
-      padMove(e);
-    });
-    this.pad.addEventListener('pointermove', (e) => { if (e.pointerId === this.padId) padMove(e); });
-    this.pad.addEventListener('pointerup', padEnd);
-    this.pad.addEventListener('pointercancel', padEnd);
+    for (const t of [this.zone, this.pad]) {
+      t.addEventListener('pointerdown', padStart);
+      t.addEventListener('pointermove', (e) => { if (e.pointerId === this.padId) padMove(e); });
+      t.addEventListener('pointerup', padEnd);
+      t.addEventListener('pointercancel', padEnd);
+    }
     if (!this.enabled) this.el.classList.add('hidden');
     window.addEventListener('touchstart', () => {
       if (!this.enabled) {
@@ -636,26 +670,32 @@ class TouchControls {
     if (this.btns.action.textContent !== label) this.btns.action.textContent = label;
     this.btns.action.classList.toggle('hot', !!t);
   }
-  layout(W, H, stage, portrait, ox = 0, oy = 0) {
+  layout(W, H, stage, portrait, ox = 0, oy = 0, tall = false) {
     if (!this.enabled) return;
     const b = this.btns;
     const place = (e, x, y) => { e.style.left = ox + x + 'px'; e.style.top = oy + y + 'px'; };
+    const area = (e, x, y, w, h) => { place(e, x, y); e.style.width = Math.max(0, w) + 'px'; e.style.height = Math.max(0, h) + 'px'; };
     const pr = 75;
+    let px, py;
     if (portrait) {
       const areaTop = stage.top + stage.height;
       const areaH = H - areaTop;
-      const cy = areaTop + areaH * 0.55;
-      place(this.pad, 24, cy - pr);
+      const cy = areaTop + areaH * (tall ? 0.5 : 0.55);
+      px = 24; py = cy - pr;
       place(b.action, W - 24 - 96, cy - 48);
       place(b.inventory, W - 24 - 96 - 74, cy + 22);
       place(b.pause, W - 56, Math.max(8, areaTop + 8));
+      area(this.zone, 0, areaTop, W - 24 - 96 - 82, areaH);
     } else {
       const cy = H * 0.66;
-      place(this.pad, Math.max(12, (stage.left - 150) / 2), cy - pr);
+      px = Math.max(12, (stage.left - 150) / 2); py = cy - pr;
       const right = W - Math.max(12, (stage.left - 110) / 2);
       place(b.action, right - 96, cy - 48);
       place(b.inventory, right - 82, cy - 140);
       place(b.pause, W - 56, 10);
+      area(this.zone, 0, 0, stage.left, H);
     }
+    this.rest = { x: ox + px, y: oy + py };
+    if (this.padId === null) place(this.pad, px, py);
   }
 }

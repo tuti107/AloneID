@@ -78,7 +78,7 @@ export default {
     r.trigger({ box: [5.05, -0.4, 5.6, 0.8], when: (gg) => gg.flags.passageOpen, enter: (gg) => gg.goTo('cavern', 'fromCellar', { fadeOut: 0.7 }) });
     r.entry('fromCavern', 4.55, 0.2, -Math.PI / 2);
 
-    r.hemi(0x2a3448, 0x0a0806, 0.7);
+    r.hemi(0x2a3448, 0x0a0806, 1.1);
 
     // after the fire: the sea comes up the tunnel behind him
     const flood = new THREE.Mesh(new THREE.PlaneGeometry(11.2, 6.4), new THREE.MeshPhongMaterial({ color: 0x041410, specular: 0x6a9a8a, shininess: 100, transparent: true, opacity: 0.8, depthWrite: false }));
@@ -99,8 +99,8 @@ export default {
       if (!g.flags['dead:' + id]) g.spawn(r, { id, type: 'crawler', x, z, rot: Math.random() * 6, onDeath: () => { g.flags['dead:' + id] = true; } });
     }
 
-    r.shot({ id: 'stairs', pos: [4.6, 2.35, 2.6], look: [-3.0, 0.4, -1.4], fov: 60, zone: [-5.2, -3.2, 0.0, 3.2] });
-    r.shot({ id: 'east', pos: [-4.0, 2.35, 2.6], look: [3.4, 0.4, -0.8], fov: 60, zone: [0.0, -3.2, 5.6, 3.2] });
+    r.shot({ id: 'stairs', pos: [4.6, 2.35, 2.6], look: [-3.0, -0.5, -1.4], fov: 60, zone: [-5.2, -3.2, 0.0, 3.2] });
+    r.shot({ id: 'east', pos: [-4.0, 2.35, 2.6], look: [3.4, -0.5, -0.8], fov: 60, zone: [0.0, -3.2, 5.6, 3.2] });
   },
 
   setup(r, g) {

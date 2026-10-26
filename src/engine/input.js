@@ -1,5 +1,9 @@
 // Unified input: keyboard, gamepad and on-screen touch controls all feed the
 // same set of logical actions.
+
+// Push a stick (touch or gamepad) this far over to run.
+export const RUN_TILT = 0.75;
+
 const KEYMAP = {
   ArrowUp: ['up'], KeyW: ['up'],
   ArrowDown: ['down'], KeyS: ['down'],

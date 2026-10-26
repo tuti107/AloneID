@@ -22,6 +22,7 @@ uniform float uWarp;
 uniform float uLevels;
 uniform float uDither;
 uniform float uExposure;
+uniform float uGamma;
 uniform float uGrain;
 uniform float uVignette;
 uniform float uSat;
@@ -59,6 +60,9 @@ void main() {
   col *= uExposure * uTint;
   col = aces(col);
   col = toSRGB(col);
+  // Brightness setting: a gamma on the display values lifts the shadows
+  // while black stays black.
+  col = pow(col, vec3(uGamma));
   float l = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(vec3(l), col, uSat);
 
@@ -119,6 +123,7 @@ export class Gfx {
         uLevels: { value: 9 },
         uDither: { value: 1 },
         uExposure: { value: 1.35 },
+        uGamma: { value: 1 },
         uGrain: { value: 0.02 },
         uVignette: { value: 1.25 },
         uSat: { value: 0.92 },
@@ -155,6 +160,14 @@ export class Gfx {
     this.renderer.shadowMap.enabled = quality > 0;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.shadowQuality = quality;
+  }
+
+  // Build the shaders a scene needs before it is first drawn (behind a fade),
+  // so stepping into a new room doesn't freeze the picture. Never waits long.
+  precompile(scene, camera, maxMs = 1500) {
+    let p;
+    try { p = this.renderer.compileAsync(scene, camera); } catch (e) { return Promise.resolve(); }
+    return Promise.race([p, new Promise((res) => setTimeout(res, maxMs))]);
   }
 
   // Resize the backing canvas to the given CSS box (device pixels, capped).

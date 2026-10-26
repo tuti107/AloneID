@@ -4,6 +4,7 @@ import { buildInvestigator } from './characters.js';
 import { Animator, blobShadow, addXray, brighten } from './rig.js';
 import { resolveCircle, separateCircles } from '../engine/collision.js';
 import { angleDiff, approachAngle, damp, noise1 } from '../engine/util.js';
+import { RUN_TILT } from '../engine/input.js';
 import { ITEMS } from './items.js';
 import * as F from './furniture.js';
 
@@ -203,17 +204,17 @@ export class Player {
           }
           const diff = angleDiff(this.rot, want);
           this.rot = approachAngle(this.rot, want, 11 * dt);
-          move = Math.abs(diff) < 1.2 ? Math.min(1, mag / 0.85) * Math.max(0.25, Math.cos(diff)) : 0;
+          move = Math.abs(diff) < 1.2 ? Math.min(1, mag / 0.6) * Math.max(0.25, Math.cos(diff)) : 0;
           this.turningVisual = move === 0;
-          run = input.down('run') || (input.analog && mag > 0.92);
+          run = input.down('run') || (input.analog && mag > RUN_TILT);
         } else this.basis = null;
       } else {
         if (input.down('up')) move = 1;
         else if (input.down('down')) move = -1;
         if (input.down('left')) turn += 1;
         if (input.down('right')) turn -= 1;
-        // touch has no run button: push the stick all the way to run
-        run = (input.down('run') || (input.analog && Math.hypot(input.axis.x, input.axis.y) > 0.92)) && move > 0;
+        // touch has no run button: push the stick well over to run
+        run = (input.down('run') || (input.analog && Math.hypot(input.axis.x, input.axis.y) > RUN_TILT)) && move > 0;
       }
     }
 

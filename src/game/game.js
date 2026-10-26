@@ -29,7 +29,9 @@ const SETTINGS_KEY = 'ashcombe.settings.v2';
 const ENDINGS_KEY = 'ashcombe.endings';
 const REDUCED_MOTION = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const COARSE = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-const DEFAULT_SETTINGS = { controls: 'modern', res: 'low', dither: true, shadows: COARSE ? 1 : 2, music: 0.7, sfx: 0.9 };
+const DEFAULT_SETTINGS = { controls: 'modern', res: 'low', dither: true, shadows: COARSE ? 1 : 2, bright: 2, music: 0.7, sfx: 0.9 };
+// 明るさ: a gamma on the picture, darkest first. The old look was the first.
+const BRIGHTNESS = [1, 0.87, 0.75, 0.66, 0.58];
 
 function loadSettings() {
   try {
@@ -144,6 +146,7 @@ export class Game {
     this.gfx.u.uDither.value = s.dither ? 1 : 0;
     this.gfx.u.uLevels.value = s.dither ? 9 : 24;
     this.gfx.setShadows(s.shadows);
+    this.gfx.u.uGamma.value = BRIGHTNESS[s.bright] ?? BRIGHTNESS[2];
     for (const r of Object.values(this.rooms)) {
       this.applyRoomShadows(r);
       r.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
@@ -335,7 +338,7 @@ export class Game {
         S.holder.add(m);
       }
     }
-    const r = inv.view.getBoundingClientRect(), st = this.ui.stage.getBoundingClientRect();
+    const r = inv.view.getBoundingClientRect(), st = this.ui.canvas.getBoundingClientRect();
     const cx = ((r.left + r.width / 2 - st.left) / st.width) * 2 - 1;
     const cy = -(((r.top + r.height * 0.45 - st.top) / st.height) * 2 - 1);
     const v = new THREE.Vector3(cx, cy, 0.5).unproject(S.cam).sub(S.cam.position).normalize();
@@ -572,6 +575,7 @@ export class Game {
       this.enterRoom(id, entry);
       if (o.door) this.audio.sfx('doorClose', { delay: 0.15 });
       this.checkpoint = this.serialize();
+      await this.gfx.precompile(this.room.scene, this.director.cam);
       await this.fade(0, 0.35);
     } finally {
       this.transitioning = false;
@@ -1003,7 +1007,8 @@ export class Game {
     const modern = this.settings.controls !== 'classic';
     const lines = this.ui.touch.enabled
       ? [
-        modern ? '左のスティック：倒した方向へ移動（大きく倒すと走る）' : '左のスティック：上で前進、左右で旋回（ラジコン操作）',
+        '左下に指を置くと、そこにスティックが出る',
+        modern ? 'スティック：倒した方向へ移動（大きく倒すと走る。つまみが赤くなる）' : 'スティック：上で前進、左右で旋回（ラジコン操作）',
         '［アクション］：調べる・開ける・取る・攻撃（状況に応じて変わる）',
         '［持物］：持ち物　［≡］：メニュー（地図もここから）',
         '家具は、向かって歩き続けると押せる',
@@ -1021,20 +1026,24 @@ export class Game {
   openOptions() {
     const s = this.settings;
     const on = (b) => (b ? 'オン' : 'オフ');
+    // a level of n steps (0 to n-1), shown as a bar; tapping goes round
+    const bar = (v, n) => '■'.repeat(v) + '□'.repeat(n - 1 - v);
+    const step = (v, d, n, wrap) => (wrap ? (v + d + n) % n : Math.max(0, Math.min(n - 1, v + d)));
     const items = [
       { label: '操作方式', value: () => (s.controls === 'classic' ? 'ラジコン' : 'モダン'), onChange: () => { s.controls = s.controls === 'classic' ? 'modern' : 'classic'; } },
       { label: '解像度', value: () => (s.res === 'low' ? '320×240' : '640×480'), onChange: () => { s.res = s.res === 'low' ? 'high' : 'low'; this.applySettings(); } },
       { label: 'ディザリング', value: () => on(s.dither), onChange: () => { s.dither = !s.dither; this.applySettings(); } },
       { label: '影', value: () => ['オフ', '低', '高'][s.shadows], onChange: (d) => { s.shadows = (s.shadows + (d > 0 ? 1 : 2)) % 3; this.applySettings(); } },
-      { label: '音楽', value: () => '■'.repeat(Math.round(s.music * 5)) + '□'.repeat(5 - Math.round(s.music * 5)), onChange: (d) => { s.music = Math.max(0, Math.min(1, Math.round(s.music * 5 + d) / 5)); this.applySettings(); } },
-      { label: '効果音', value: () => '■'.repeat(Math.round(s.sfx * 5)) + '□'.repeat(5 - Math.round(s.sfx * 5)), onChange: (d) => { s.sfx = Math.max(0, Math.min(1, Math.round(s.sfx * 5 + d) / 5)); this.applySettings(); this.audio.ui('move'); } },
+      { label: '明るさ', value: () => bar(s.bright + 1, BRIGHTNESS.length + 1), onChange: (d, wrap) => { s.bright = step(s.bright, d, BRIGHTNESS.length, wrap); this.applySettings(); } },
+      { label: '音楽', value: () => bar(Math.round(s.music * 5), 6), onChange: (d, wrap) => { s.music = step(Math.round(s.music * 5), d, 6, wrap) / 5; this.applySettings(); } },
+      { label: '効果音', value: () => bar(Math.round(s.sfx * 5), 6), onChange: (d, wrap) => { s.sfx = step(Math.round(s.sfx * 5), d, 6, wrap) / 5; this.applySettings(); this.audio.ui('move'); } },
       { label: '無敵（テスト用）', value: () => on(s.invincible), onChange: () => { s.invincible = !s.invincible; this.applySettings(); } },
       { label: '戻る', onSelect: (m) => { this.saveSettings(); m.close(); } },
     ];
     new MenuModal(this, {
       title: '設定',
       items,
-      hint: '←→で変更',
+      hint: this.ui.touch.enabled ? 'タップで変更' : '←→で変更',
       onCancel: (m) => { this.saveSettings(); m.close(); },
     }).open();
   }
@@ -1199,6 +1208,7 @@ export class Game {
     this.checkpoint = this.serialize();
     this.audio.music(this.escape ? 'escape' : null);
     this.gfx.u.uFade.value = 1;
+    this.gfx.precompile(this.room.scene, this.director.cam);
     this.fade(0, 0.6);
     this.lastEntry = d.entry;
     const room = this.room;
