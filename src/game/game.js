@@ -242,13 +242,16 @@ export class Game {
       }
       this.escape.t -= dt;
       this.ui.setTimer(this.escape.t);
-      if (this.escape.t <= 0 && this.player.alive && this.flags.finalEscape) {
+      // time running out waits for a door to finish: the ending's fade must
+      // not race the doorway's
+      const up = this.escape.t <= 0 && !this.transitioning;
+      if (up && this.player.alive && this.flags.finalEscape) {
         // the shrine comes down between them: he lives, she does not
         this.escape = null;
         this.ui.setTimer(null);
         this.stopFollower();
         this.run(() => this.ending('tide'));
-      } else if (this.escape.t <= 0 && this.player.alive) {
+      } else if (up && this.player.alive) {
         this.escape = null;
         this.ui.setTimer(null);
         this.deathText = this.flags.flameDrowned && this.act === 1 ? '押し寄せる黒い潮に、エドガーは呑み込まれた……' : '崩れ落ちる屋敷に、エドガーは呑み込まれた……';

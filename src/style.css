@@ -159,15 +159,20 @@ body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit
 /* The picture is the top var(--vh) of the stage; below it, down to the
    controls, is room for the message box and taller menus. */
 .tall #hud { bottom: auto; height: var(--vh); }
-.tall #msg { top: calc(var(--vh) + var(--u) * 5); bottom: auto; left: calc(var(--u) * 4); right: calc(var(--u) * 4); }
+/* fills the room under the picture; a long message grows up over the picture */
+.tall #msg { bottom: calc(var(--u) * 4); left: calc(var(--u) * 4); right: calc(var(--u) * 4); box-sizing: border-box; min-height: calc(100% - var(--vh) - var(--u) * 9); }
 .tall #msg.fs, .tall #layer .fs { font-size: max(15px, calc(var(--u) * 8.5)); }
 .tall #layer .fs-s { font-size: max(13px, calc(var(--u) * 7)); }
-.tall .inv { inset: 0 calc(var(--u) * 4) calc(var(--u) * 4); grid-template-columns: 1fr; grid-template-rows: calc(var(--vh) - var(--u) * 4) minmax(0, 1fr) auto; }
+/* on a short screen the item picture gives way, so a few items always show */
+.tall .inv { inset: 0 calc(var(--u) * 4) calc(var(--u) * 4); grid-template-columns: 1fr; grid-template-rows: minmax(0, calc(var(--vh) - var(--u) * 4)) minmax(max(110px, calc(var(--u) * 70)), 1fr) auto; }
 .tall .inv .view { grid-row: 1; grid-column: 1; margin-top: calc(var(--u) * 4); }
 .tall .inv .items { grid-row: 2; grid-column: 1; }
 .tall .inv .bottom { grid-row: 3; grid-column: 1; }
 .tall .inv .desc { font-size: max(13px, calc(var(--u) * 7)); min-height: calc(var(--u) * 34); }
-.tall .mapbox canvas { width: calc(var(--u) * 300); height: calc(var(--u) * 260); }
+.tall .mapbox { box-sizing: border-box; max-height: 100%; }
+.tall .mapbox .tabs { flex-wrap: wrap; justify-content: center; }
+.tall .mapbox .tabs span { white-space: nowrap; }
+.tall .mapbox canvas { width: calc(var(--u) * 300); height: calc(var(--u) * 260); min-height: 0; flex: 0 1 auto; }
 .tall .doc { width: 90%; }
 
 /* ---------------------------------------------------------------- touch */

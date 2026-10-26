@@ -602,14 +602,18 @@ class TouchControls {
     this.padId = null;
     this.rest = { x: 0, y: 0 };
     const PR = 75;
+    // The stick's centre is wherever the thumb lands, so touching down never
+    // moves him. Near an edge the pad is drawn inset, and full tilt toward
+    // that edge is reached at the edge itself.
     const padMove = (e) => {
-      const r = this.pad.getBoundingClientRect();
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      let dx = (e.clientX - cx) / (r.width / 2), dy = (e.clientY - cy) / (r.height / 2);
+      const o = this.org;
+      const mx = e.clientX - o.x, my = e.clientY - o.y;
+      let dx = mx / (mx < 0 ? o.l : o.r), dy = my / (my < 0 ? o.u : o.d);
       const l = Math.hypot(dx, dy);
       if (l > 1) { dx /= l; dy /= l; }
-      this.knob.style.left = 50 + dx * 34 + '%';
-      this.knob.style.top = 50 + dy * 34 + '%';
+      const r = this.pad.getBoundingClientRect();
+      this.knob.style.left = 50 + ((o.x - r.left - r.width / 2) / r.width) * 100 + dx * 34 + '%';
+      this.knob.style.top = 50 + ((o.y - r.top - r.height / 2) / r.height) * 100 + dy * 34 + '%';
       input.touchStick = l > 0.2 ? { x: dx, y: dy } : null;
       this.knob.classList.toggle('run', l > RUN_TILT);
       const th = 0.38;
@@ -623,11 +627,11 @@ class TouchControls {
       if (this.padId !== null) return;
       this.padId = e.pointerId;
       e.currentTarget.setPointerCapture(e.pointerId);
-      // the stick centres on the thumb, wherever it lands
-      const x = Math.max(PR + 4, Math.min(window.innerWidth - PR - 4, e.clientX));
-      const y = Math.max(PR + 4, Math.min(window.innerHeight - PR - 4, e.clientY));
-      this.pad.style.left = x - PR + 'px';
-      this.pad.style.top = y - PR + 'px';
+      const x = e.clientX, y = e.clientY, iw = window.innerWidth, ih = window.innerHeight;
+      const reach = (room) => Math.max(16, Math.min(PR, room - 2));
+      this.org = { x, y, l: reach(x), r: reach(iw - x), u: reach(y), d: reach(ih - y) };
+      this.pad.style.left = Math.max(4, Math.min(iw - 2 * PR - 4, x - PR)) + 'px';
+      this.pad.style.top = Math.max(4, Math.min(ih - 2 * PR - 4, y - PR)) + 'px';
       this.pad.classList.add('live');
       padMove(e);
     };
