@@ -1,0 +1,52 @@
+{
+  "what": "15-second live-action-style teaser, made in Runway and cut with edit.py",
+  "credits_used": 515,
+  "stills": {
+    "model": "nano-banana-pro, 16:9, 1K (20 credits each)",
+    "kf1_mansion": {
+      "task": "eaab25cb-156a-4679-8a16-26a624d52b5b",
+      "note": "cropped to the left/top 84% before animating, to lose stray lettering in the corner",
+      "prompt": "Photoreal cinematic film still, wide establishing shot at night in a violent winter storm, 1924 New England coast. A decaying Victorian Second Empire mansion with a mansard roof and a tall square tower crowned by a glass lighthouse lamp room stands alone at the very edge of a black sea cliff. One upstairs window glows faint amber. A fork of lightning splits the sky behind the tower and lights the scene cold blue-white; sideways rain; enormous waves explode into white spray against the rocks far below. Dead grass and a leaning iron fence in the foreground. Deep shadows, desaturated teal palette, 35mm anamorphic lens, subtle film grain, gothic horror atmosphere, no people, no text, no watermark."
+    },
+    "kf2_edgar": {
+      "task": "4aada01e-1bce-423a-92ff-8709c0fef66d",
+      "prompt": "Photoreal cinematic film still, medium shot: a weary American private detective in his early forties in the winter of 1924 — rain-soaked tan trench coat, brown felt fedora, short dark hair, a few days of stubble — holds a lit brass storm lantern up at shoulder height in the pitch-black upstairs corridor of an abandoned Victorian mansion. Dark wood wainscoting, peeling damask wallpaper, a row of faded oil portraits in gilt frames receding into darkness, a closed door at the far end. The warm amber lantern light is the only light, falling across his tense face as he glances back over his shoulder toward the darkness at the edge of frame. A thin strip of cold blue moonlight on the floorboards. Dust in the air, shallow depth of field, 35mm anamorphic lens, subtle film grain, horror, no text, no watermark."
+    },
+    "kf3_sailor": {
+      "task": "ef3e03bd-3411-4a84-8fc9-43f27599fd19",
+      "prompt": "Photoreal cinematic horror film still: a flooded stone cellar at night, black still water knee-deep, an old storm lantern hanging from a low beam throws swaying amber light. A drowned sailor from the early 1800s is rising up out of the black water toward the camera — bloated grey-green waterlogged skin, milky clouded eyes, slack open mouth, long matted hair tangled with seaweed, a torn striped sailor's shirt, barnacles on one shoulder, water pouring off him, one pale hand reaching forward. Mist drifting on the water, cold green underlight, extreme dread, 35mm lens, subtle film grain, no text, no watermark."
+    },
+    "kf4_captain": {
+      "task": "753c6baf-2bd1-43db-89a1-ba9d972de53e",
+      "prompt": "Photoreal cinematic film still: the wrecked great cabin of an old whaling ship run aground in a sea cave — tilted floorboards half under seawater, rotten beams, a chart table, three cracked stern windows behind. Standing by the windows is a drowned sea captain from 1802, tall and broad: a rotten navy-blue captain's coat with tarnished brass buttons and green-corroded epaulettes, a black tricorn hat, grey-green waterlogged skin, a long beard of dripping kelp, barnacles crusting his forearms, a cutlass in his right hand, and in the middle of his chest, where his heart should be, a five-pointed star-shaped stone embedded in the flesh, glowing ice-blue and lighting his coat and face from below. A swaying oil lamp throws warm light from one side. Menacing and regal, 35mm anamorphic lens, subtle film grain, horror, no text, no watermark."
+    },
+    "kf5_abyss": {
+      "task": "56f364d7-9f33-4e17-a0c4-4dd24fab36f4",
+      "from": "8c88cf4a-4da0-4526-ac72-d5d02da3d21d",
+      "note": "the first version's slit-shaped maw was redrawn as a round, toothed one",
+      "prompt": "Photoreal cinematic film still, epic wide shot inside a vast underground sea cavern: a narrow rock causeway leads across a black bottomless abyss to a small island of wet rock with two ancient rune-carved stone pillars and a low stone altar. On the altar lies a young woman in a pale 1920s dress, unconscious, her wrists bound with seaweed. Behind the altar, rising up out of the abyss, a colossal monstrous god — a mountain of grey-purple flesh covered in dozens of staring yellow eyes, a vertical red maw, writhing tentacles and grasping human-like arms — lit from below by an eerie green glow from the depths. In the foreground on the causeway, the dark silhouette of a man in a trench coat and fedora holds up a glowing lantern. Mist, enormous scale, cold green and warm amber light, 35mm anamorphic lens, subtle film grain, cosmic horror, no text, no watermark.",
+      "edit": "@scene exactly as it is, but on the colossal creature, replace the vertical red slit in the middle of its body with a huge round gaping mouth ringed with rows of long needle-like teeth, dark and wet inside. Keep everything else identical."
+    },
+    "kf6_lantern": {
+      "task": "67b4a27d-7efe-484e-a9dc-4e1fd736b63c",
+      "prompt": "Photoreal cinematic macro shot: an old brass storm lantern with a soot-stained glass globe hangs in total darkness; inside, a single tall white-gold flame burns. Faint smoke curls above it. Pure black background, the flame is the only light, warm reflections on the brass, shallow depth of field, 35mm, subtle film grain. The lantern sits in the lower third of the frame with dark empty space above it, no text, no watermark."
+    }
+  },
+  "clips": {
+    "model": "gen-4.5 image-to-video, 5 s, 1280x720, 24 fps (60 credits each)",
+    "s1_mansion": {"task": "72f3a0de-9b4c-429a-976b-bf9fb337d6ad", "prompt": "Slow steady cinematic push-in toward the Victorian mansion on the sea cliff during a violent night storm. Lightning flickers and branches across the clouds, briefly lighting the house; sideways rain streaks through the frame; huge waves crash and explode into white spray against the rocks below; the dead grass and the leaning iron fence shudder in the gale; the single amber window glows. Photoreal live-action film footage, 35mm, natural motion, no text."},
+    "s2_edgar": {"task": "167944bc-a81b-41c0-a82e-1f3230471bfa", "prompt": "The detective slowly raises the brass storm lantern and turns his head to look warily over his shoulder into the darkness behind him; the lantern flame flickers and its warm light sways across the peeling wallpaper and the faded portraits; dust drifts in the air; the camera slowly pushes in toward him. Photoreal live-action film footage, natural subtle motion, no text."},
+    "s3_sailor": {"task": "c17ff1ee-906f-496d-a6de-84406577b8b2", "prompt": "The drowned sailor lurches up out of the black water toward the camera, water pouring off his body and hair, his pale clawed hand grasping forward at the lens; the hanging lantern swings and its light jumps across the wet stone walls; mist swirls on the water. Sudden and frightening, photoreal live-action horror film footage, no text."},
+    "s4_captain": {"task": "8c0b7e83-66df-49af-a75f-24709ec09237", "prompt": "The drowned sea captain slowly lifts his head and turns to face the camera; the blue star stone in his chest pulses and flares brighter, lighting his kelp beard; seawater drips from his coat; he raises the cutlass; the oil lamp sways on its chain; storm waves heave outside the cracked stern windows. Slow push-in, menacing, photoreal live-action horror film footage, no text."},
+    "s5_abyss": {"task": "4c5c48ef-54ff-46f2-97f0-603695590ae8", "prompt": "The colossal creature heaves slowly upward out of the abyss behind the altar, its many yellow eyes blinking and rolling, its toothed maw opening wider, its tentacles writhing and reaching over the pillars; the green glow from the depths pulses; mist rolls across the causeway; the man in the foreground lifts his lantern higher. Slow push-in, photoreal live-action cosmic horror film footage, no text."},
+    "s6_lantern": {"task": "769b3569-b59e-4929-9b60-ca71bb32e847", "prompt": "The flame inside the old brass storm lantern trembles, then suddenly flares up tall and bright, white-gold light blooming out into the darkness and glinting on the brass; a thread of smoke curls upward; the lantern sways gently on its handle. Photoreal macro film footage, locked-off camera, no text."}
+  },
+  "sound": {
+    "music": {"task": "4055aeda-b2cc-4337-90a2-b5a5454ac8cd", "model": "eleven-music-v2.5, 15 s, instrumental", "prompt": "Dark cinematic horror trailer cue, exactly 15 seconds, instrumental, no vocals, no drums kit. 0 to 3 seconds: distant storm rumble under a low sustained contrabass drone and one lonely detuned music-box note. 3 to 10 seconds: a slow heartbeat pulse on low taiko, tense col legno strings, dissonant cello swells and a high violin tremolo slowly rising, growing more urgent. 10 to 12 seconds: a sharp crescendo of brass and a rising riser, tension peaking. At 12 seconds: one massive low cinematic impact boom with a metallic braam and a cymbal swell, then a long dark reverberating tail with a single high piano note, fading to silence by 15 seconds. Gothic, oppressive, 1920s haunted mansion by the sea."},
+    "thunder": {"task": "5b45477d-9b96-460c-9634-965894451575", "prompt": "A violent thunder crack right overhead with a sizzling lightning strike, then heavy wind-driven rain and huge sea waves crashing against a rocky cliff below, stormy night."},
+    "splash": {"task": "e5c786ad-2648-4a15-811f-f9173290b2f0", "prompt": "A drowned body bursting up out of deep black water in a stone cellar: a big wet splash, water pouring off, and a choking gurgling groan, close and frightening, short reverb."},
+    "roar": {"task": "2c54ff94-7abd-4797-a80d-f14e08250d3e", "prompt": "A colossal monstrous creature roars up from a bottomless sea cavern: an enormously deep, wet, guttural bellow with layered inhuman screeches, rolling cavern echo and rumbling rocks."},
+    "whisper": {"task": "9f3bdd82-2d53-43bc-ad47-7998a86b59e8", "model": "eleven_v3, voice Rusty, Japanese", "text": "[whispers] あれを……火に、還せ。"}
+  },
+  "fonts": "Shippori Mincho (Bold, Medium) and Cinzel, SIL Open Font License, from Google Fonts"
+}
