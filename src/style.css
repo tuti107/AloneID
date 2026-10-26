@@ -48,6 +48,10 @@ body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit
   text-shadow: 1px 1px 0 #000; opacity: 0; transition: opacity 0.3s;
 }
 #ammo.on { opacity: 0.85; }
+#god {
+  position: absolute; left: calc(var(--u) * 6); top: calc(var(--u) * 15); color: #c9a65a;
+  text-shadow: 1px 1px 0 #000; opacity: 0.7; letter-spacing: 0.2em;
+}
 #timer {
   position: absolute; left: 50%; top: calc(var(--u) * 5); transform: translateX(-50%);
   color: #ff6a4a; text-shadow: 1px 1px 0 #000, 0 0 8px #a00; letter-spacing: 0.1em;

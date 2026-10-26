@@ -17,6 +17,7 @@ import { TitleScene } from './title.js';
 import { burst } from './fx.js';
 import { MapModal } from './mapscreen.js';
 import { Clara } from './follower.js';
+import { CHAPTERS } from './chapters.js';
 
 const SAVE_KEY = 'ashcombe.save.';
 // v1: the house as it was, one act. v2: two acts (flags.act).
@@ -148,6 +149,8 @@ export class Game {
       r.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
     }
     this.audio.setVolumes && this.audio.setVolumes(s.music, s.sfx);
+    this.godMode = !!s.invincible;
+    this.ui.setGodMode(this.godMode);
   }
   // 影: 高 = every shadow light, 低 = spotlights only (point lights cost 6 passes).
   applyRoomShadows(r) {
@@ -1025,6 +1028,7 @@ export class Game {
       { label: '影', value: () => ['オフ', '低', '高'][s.shadows], onChange: (d) => { s.shadows = (s.shadows + (d > 0 ? 1 : 2)) % 3; this.applySettings(); } },
       { label: '音楽', value: () => '■'.repeat(Math.round(s.music * 5)) + '□'.repeat(5 - Math.round(s.music * 5)), onChange: (d) => { s.music = Math.max(0, Math.min(1, Math.round(s.music * 5 + d) / 5)); this.applySettings(); } },
       { label: '効果音', value: () => '■'.repeat(Math.round(s.sfx * 5)) + '□'.repeat(5 - Math.round(s.sfx * 5)), onChange: (d) => { s.sfx = Math.max(0, Math.min(1, Math.round(s.sfx * 5 + d) / 5)); this.applySettings(); this.audio.ui('move'); } },
+      { label: '無敵（テスト用）', value: () => on(s.invincible), onChange: () => { s.invincible = !s.invincible; this.applySettings(); } },
       { label: '戻る', onSelect: (m) => { this.saveSettings(); m.close(); } },
     ];
     new MenuModal(this, {
@@ -1093,6 +1097,35 @@ export class Game {
     }));
     items.push({ label: '戻る', onSelect: (m) => m.close() });
     new MenuModal(this, { title: mode === 'save' ? 'セーブ' : 'ロード', items, onCancel: (m) => m.close() }).open();
+  }
+
+  // Chapter select (for testing): start a part of the story as a real
+  // playthrough would have reached it. The first chapter is a new game.
+  openChapters() {
+    const items = CHAPTERS.map((ch) => ({
+      label: ch.title,
+      value: () => ch.place,
+      disabled: ch.id !== 'storm' && !ch.state,
+      onSelect: () => this.startChapter(ch.id),
+    }));
+    items.push({ label: '戻る', onSelect: (m) => m.close() });
+    new MenuModal(this, {
+      title: 'チャプター選択',
+      items,
+      hint: 'その章の始まりから遊べます（テスト用）。設定の「無敵」もどうぞ',
+      onCancel: (m) => m.close(),
+    }).open();
+  }
+
+  get chapters() { return CHAPTERS; }
+
+  startChapter(id) {
+    const ch = CHAPTERS.find((c) => c.id === id);
+    for (const m of this.modals.slice()) m.close();
+    if (this.titleScene) this.titleScene.menu = null;
+    if (!ch.state) { this.newGame(); return; }
+    this.loadState(JSON.parse(JSON.stringify(ch.state)));
+    this.ui.showRoomName(ch.title);
   }
 
   // ------------------------------------------------------------ state

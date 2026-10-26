@@ -28,6 +28,7 @@ export class UI {
     this.prompt = el('div', { id: 'prompt', class: 'fs' }, this.hud);
     this.ammoEl = el('div', { id: 'ammo', class: 'fs-s' }, this.hud);
     this.timerEl = el('div', { id: 'timer', class: 'fs-l hidden' }, this.hud);
+    this.godEl = el('div', { id: 'god', class: 'fs-s hidden' }, this.hud, '無敵');
     this.layer = el('div', { id: 'layer' }, this.stage);
     this.msg = el('div', { id: 'msg', class: 'fs hidden' }, this.stage);
     this.curtain = el('div', { id: 'curtain', class: 'fs-l' }, this.stage);
@@ -84,6 +85,10 @@ export class UI {
       this.ammoEl.textContent = `${label} ${n}`;
       this.ammoEl.classList.add('on');
     }
+  }
+
+  setGodMode(on) {
+    this.godEl.classList.toggle('hidden', !on);
   }
 
   setTimer(sec) {

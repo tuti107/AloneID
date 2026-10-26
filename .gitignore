@@ -4,3 +4,4 @@ dist/
 .DS_Store
 tools/trailer/out/
 __pycache__/
+tools/walkthrough/out/

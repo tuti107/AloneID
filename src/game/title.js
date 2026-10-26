@@ -399,6 +399,7 @@ class TitleMenu extends Modal {
     this.items = [
       { label: 'はじめから', go: () => { this.close(); g.titleScene.menu = null; g.newGame(); } },
       { label: 'つづきから', disabled: !hasSave, go: () => g.openSaveMenu('load') },
+      { label: 'チャプター選択', go: () => g.openChapters() },
       { label: '設定', go: () => g.openOptions() },
       { label: '操作方法', go: () => g.showControls() },
     ];
