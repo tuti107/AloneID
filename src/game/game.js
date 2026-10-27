@@ -18,6 +18,7 @@ import { burst } from './fx.js';
 import { MapModal } from './mapscreen.js';
 import { Clara } from './follower.js';
 import { CHAPTERS } from './chapters.js';
+import { store } from '../engine/store.js';
 
 const SAVE_KEY = 'ashcombe.save.';
 // v1: the house as it was, one act. v2: two acts (flags.act).
@@ -35,7 +36,7 @@ const BRIGHTNESS = [1, 0.87, 0.75, 0.66, 0.58];
 
 function loadSettings() {
   try {
-    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+    const s = JSON.parse(store.get(SETTINGS_KEY) || 'null');
     return { ...DEFAULT_SETTINGS, ...(s || {}) };
   } catch (e) {
     return { ...DEFAULT_SETTINGS };
@@ -136,6 +137,15 @@ export class Game {
     this.toastT = 0;
     this.toastEl = el('div', { id: 'prompt', class: 'fs', style: 'bottom:auto;top:calc(var(--u)*30)' }, this.ui.hud);
     this.applySettings();
+    // saves and settings kept on the server too, when the page is allowed
+    // it: when they arrive, the settings and the title menu follow them
+    store.onChange(() => {
+      this.settings = loadSettings();
+      this.applySettings();
+      const menu = this.titleScene && this.titleScene.menu;
+      if (menu && menu.stage === 'menu' && !menu.closed) menu.build();
+    });
+    store.connect();
   }
 
   // ------------------------------------------------------------ settings
@@ -162,7 +172,7 @@ export class Game {
   }
 
   saveSettings() {
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch (e) { /* storage unavailable */ }
+    store.set(SETTINGS_KEY, JSON.stringify(this.settings));
   }
 
   // ------------------------------------------------------------ loop
@@ -579,6 +589,7 @@ export class Game {
       this.enterRoom(id, entry);
       if (o.door) this.audio.sfx('doorClose', { delay: 0.15 });
       this.checkpoint = this.serialize();
+      this.autoSave();
       await this.gfx.precompile(this.room.scene, this.director.cam);
       await this.fade(0, 0.35);
     } finally {
@@ -835,7 +846,7 @@ export class Game {
     const wrap = el('div', { id: 'gameover' }, this.ui.layer);
     el('div', { class: 'big fs-l' }, wrap, 'GAME OVER');
     el('div', { class: 'sub fs' }, wrap, text);
-    const hasSave = this.listSaves().some(Boolean);
+    const hasSave = this.hasAnySave();
     const menu = new MenuModal(this, {
       bg: false,
       items: [
@@ -1055,23 +1066,30 @@ export class Game {
   // Endings seen on this browser, with `kind` added.
   seenEndings(kind) {
     let seen = [];
-    try { seen = JSON.parse(localStorage.getItem(ENDINGS_KEY) || '[]'); } catch (e) { /* storage unavailable */ }
+    try { seen = JSON.parse(store.get(ENDINGS_KEY) || '[]'); } catch (e) { /* unreadable */ }
     if (!Array.isArray(seen)) seen = [];
     if (ENDINGS[kind] && ENDINGS[kind].n && !seen.includes(kind)) seen.push(kind);
     seen = seen.filter((k) => ENDINGS[k] && ENDINGS[k].n);
-    try { localStorage.setItem(ENDINGS_KEY, JSON.stringify(seen)); } catch (e) { /* storage unavailable */ }
+    store.set(ENDINGS_KEY, JSON.stringify(seen));
     return seen;
   }
 
+  readSave(slot) {
+    try {
+      const raw = store.get(SAVE_KEY + slot);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
   listSaves() {
-    const out = [];
-    for (let i = 1; i <= 3; i++) {
-      try {
-        const raw = localStorage.getItem(SAVE_KEY + i);
-        out.push(raw ? JSON.parse(raw) : null);
-      } catch (e) { out.push(null); }
-    }
-    return out;
+    return [1, 2, 3].map((i) => this.readSave(i));
+  }
+  // The auto save: where he last came through a door, kept every time he
+  // does, so there is always somewhere to continue from.
+  autoSave() {
+    if (this.checkpoint) store.set(SAVE_KEY + 'auto', JSON.stringify(this.checkpoint));
+  }
+  hasAnySave() {
+    return !!this.readSave('auto') || this.listSaves().some(Boolean);
   }
 
   openSaveMenu(mode, onLoaded) {
@@ -1082,6 +1100,7 @@ export class Game {
       const room = ROOMS[s.room] ? ROOMS[s.room].name : s.room;
       return `${(s.act || 1) >= 2 ? '第二幕　' : ''}${room}　${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
     };
+    const auto = mode === 'load' ? this.readSave('auto') : null;
     const items = saves.map((s, i) => ({
       label: `${i + 1}. ${fmt(s)}`,
       disabled: mode === 'load' && !s,
@@ -1093,14 +1112,9 @@ export class Game {
           }
           this.stats.saves++;
           const data = this.serialize();
-          try {
-            localStorage.setItem(SAVE_KEY + (i + 1), JSON.stringify(data));
-            m.close();
-            await this.say('記録した。');
-          } catch (e) {
-            m.close();
-            await this.say('記録できなかった。（ブラウザの保存領域が使えません）');
-          }
+          const kept = store.set(SAVE_KEY + (i + 1), JSON.stringify(data));
+          m.close();
+          await this.say(kept ? '記録した。' : '記録できなかった。（ブラウザの保存領域が使えません）');
         } else {
           for (const mm of this.modals.slice()) mm.close();
           if (onLoaded) onLoaded();
@@ -1108,6 +1122,16 @@ export class Game {
         }
       },
     }));
+    if (auto) {
+      items.unshift({
+        label: `オート　${fmt(auto)}`,
+        onSelect: () => {
+          for (const mm of this.modals.slice()) mm.close();
+          if (onLoaded) onLoaded();
+          this.loadState(auto);
+        },
+      });
+    }
     items.push({ label: '戻る', onSelect: (m) => m.close() });
     new MenuModal(this, { title: mode === 'save' ? 'セーブ' : 'ロード', items, onCancel: (m) => m.close() }).open();
   }

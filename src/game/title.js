@@ -395,7 +395,7 @@ class TitleMenu extends Modal {
   }
   build() {
     const g = this.game;
-    const hasSave = g.listSaves().some(Boolean);
+    const hasSave = g.hasAnySave();
     this.items = [
       { label: 'はじめから', go: () => { this.close(); g.titleScene.menu = null; g.newGame(); } },
       { label: 'つづきから', disabled: !hasSave, go: () => g.openSaveMenu('load') },
