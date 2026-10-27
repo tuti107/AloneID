@@ -60,13 +60,16 @@ export default {
         await gg.say('横から押せば、ずらせそうだ。');
       },
     });
+    // the hole stays shut until the rack has cleared it: part-way, a gap
+    // opens beside the rack before the tunnel counts as open
+    const plug = r.collider(5.1, 0.2, 0.5, 0.1, -Math.PI / 2);
+    plug.enabled = !g.flags.passageOpen;
     r.pushable(rack, {
       id: 'cellarRack', hw: 0.66, hd: 0.24, axis: [0, 1], min: 0, max: 1.5,
       onMove: (t, gg, silent) => {
         info.z = rack.position.z;
-        // open (and the tunnel trigger live) before the gap beside the rack
-        // is wide enough for him, which is at t = 0.7
-        if (t >= 0.65 && !gg.flags.passageOpen) {
+        plug.enabled = !gg.flags.passageOpen && t < 1.45;
+        if (t >= 1.45 && !gg.flags.passageOpen) {
           gg.flags.passageOpen = true;
           if (!silent) gg.task(async () => { gg.audio.sfx('sting'); await gg.say('ワイン棚の裏の壁に、黒々とした穴が口を開けた。\n奥から、波の音が聞こえる……。'); });
         }
