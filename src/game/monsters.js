@@ -117,7 +117,8 @@ export class Monster {
         }
         if (!p.alive) { this.setState('feast'); break; }
         const facing = Math.abs(angleDiff(this.rot, toP));
-        if (dist < this.T.range + p.radius * 0.5 && this.attackCd <= 0 && facing < 0.7 && Math.abs(p.pos.y - this.pos.y) < 0.9) {
+        // (never through a wall: what he can't strike back at can't strike him)
+        if (dist < this.T.range + p.radius * 0.5 && this.attackCd <= 0 && facing < 0.7 && Math.abs(p.pos.y - this.pos.y) < 0.9 && this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z)) {
           this.startAttack(dist);
           break;
         }
@@ -205,7 +206,10 @@ export class Monster {
     const want = Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z);
     const diff = Math.abs(angleDiff(this.rot, want));
     this.rot = approachAngle(this.rot, want, this.T.turn * dt);
-    if (dist < this.T.range * 0.8 && Math.abs(this.player.pos.y - this.pos.y) < 0.9) return 0;
+    // close enough: stand and strike, unless something is in between, then
+    // keep coming round it
+    const p = this.player;
+    if (dist < this.T.range * 0.8 && Math.abs(p.pos.y - this.pos.y) < 0.9 && this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z)) return 0;
     return this.T.speed * (diff > 1.2 ? 0.15 : diff > 0.6 ? 0.5 : 1);
   }
 
@@ -223,7 +227,9 @@ export class Monster {
       const d = Math.hypot(dx, dz);
       const ang = Math.abs(angleDiff(this.rot, Math.atan2(dx, dz)));
       const reach = this.T.range + 0.4 + (this.state === 'leap' ? 0.4 : 0);
-      if (d < reach && ang < 1.1 && p.alive && Math.abs(p.pos.y - this.pos.y) < 1.0) {
+      // nothing solid between them (a ghost, that glides through furniture, strikes through it too)
+      const clear = this.ghostly || this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z);
+      if (d < reach && ang < 1.1 && p.alive && Math.abs(p.pos.y - this.pos.y) < 1.0 && clear) {
         if (p.damage(this.T.dmg, this.pos.x, this.pos.z)) this.game.audio.sfx('hitFlesh', { at: p.pos });
       } else this.game.audio.sfx('whoosh', { at: this.pos, rate: 0.6 });
     } else if (e === 'step') {

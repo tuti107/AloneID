@@ -25,7 +25,14 @@ export default {
       openings: { w: [{ at: 2.0, w: 1.0, h: 2.15 }], e: [{ at: 2.0, w: 0.9, h: 1.3, sill: 0.95 }], s: [{ at: 2.8, w: 1.0, h: 2.15 }] },
     });
     // the passage runs along the south; three rooms open off it to the north
-    r.wall(-6, 0.5, 6, 0.5, { h: H, mat: 'plasterDark', normal: [0, 1], wainscot: 'wainscotLight', wainscotH: 1.0, openings: [{ at: 2, w: 1.0, h: 2.15, pass: true }, { at: 6, w: 1.1, h: 2.15, pass: true }, { at: 10, w: 1.0, h: 2.15 }] });
+    r.wall(-6, 0.5, 6, 0.5, { h: H, mat: 'plasterDark', normal: [0, 1], wainscot: 'wainscotLight', wainscotH: 1.0, openings: [{ at: 2, w: 1.0, h: 2.15, pass: true }, { at: 6, w: 1.1, h: 2.15, pass: true }, { at: 10, w: 1.0, h: 2.15, pass: true }] });
+    // (Harlow's doorway is shut by its door's own collider until it opens)
+    // dark wood architraves round the two open doorways, so they read as
+    // ways in from the passage and not as a shadow on the wall
+    for (const [x, w] of [[-4, 1.0], [0, 1.1]]) {
+      for (const sx of [-1, 1]) r.box('woodBlack', 0.12, 2.27, 0.05, x + sx * (w / 2 + 0.057), 0, 0.522, { cast: false });
+      r.box('woodBlack', w + 0.34, 0.13, 0.06, x, 2.15, 0.527, { cast: false });
+    }
     r.wall(-2, -3.5, -2, 0.3, { h: H, mat: 'plasterDark', normal: [1, 0], baseboard: false });
     r.wall(2, -3.5, 2, 0.3, { h: H, mat: 'plasterDark', normal: [1, 0], baseboard: false });
     F.rug(r, 'carpetRunner', 0, 2.0, 1.1, 11.4, Math.PI / 2);
@@ -123,10 +130,12 @@ export default {
     if (!g.flags['dead:servThrall1']) g.spawn(r, { id: 'servThrall1', type: 'thrall', seed: 7, x: 3.6, z: 2.2, rot: -Math.PI / 2, onDeath: () => { g.flags['dead:servThrall1'] = true; } });
     if (!g.flags['dead:servThrall2']) g.spawn(r, { id: 'servThrall2', type: 'thrall', seed: 8, x: 3.5, z: -1.5, rot: Math.PI, dormant: !g.flags.harlowOpen, onDeath: () => { g.flags['dead:servThrall2'] = true; } });
 
-    // both passage cameras look west: walking the length of it never turns
-    // the picture round
-    r.shot({ id: 'passW', pos: [0.6, 2.5, 0.85], look: [-4.6, 0.7, 2.4], fov: 58, zone: [-6.2, 0.4, -1.0, 3.7] });
-    r.shot({ id: 'passE', pos: [5.7, 2.5, 0.85], look: [0.2, 0.7, 2.6], fov: 58, zone: [-1.0, 0.4, 6.2, 3.7] });
+    // the passage cameras all look west, so walking the length of it never
+    // turns the picture round; the west two look across from the south wall
+    // so Agnes's door and the cold store's stand open in the picture
+    r.shot({ id: 'passW', pos: [-1.7, 2.6, 3.3], look: [-5.2, 0.7, 0.2], fov: 60, zone: [-6.2, 0.4, -2.0, 3.7] });
+    r.shot({ id: 'passC', pos: [2.2, 2.6, 3.3], look: [-1.3, 0.7, 0.2], fov: 60, zone: [-2.0, 0.4, 2.0, 3.7] });
+    r.shot({ id: 'passE', pos: [5.7, 2.5, 0.85], look: [0.2, 0.7, 2.6], fov: 58, zone: [2.0, 0.4, 6.2, 3.7] });
     r.shot({ id: 'agnes', pos: [-2.4, 2.5, 0.05], look: [-4.8, 0.6, -2.4], fov: 60, zone: [-6.2, -3.7, -2.0, 0.4] });
     r.shot({ id: 'cold', pos: [1.6, 2.5, 0.05], look: [-0.4, 0.8, -2.6], fov: 60, zone: [-2.0, -3.7, 2.0, 0.4] });
     r.shot({ id: 'harlow', pos: [2.4, 2.5, 0.05], look: [4.8, 0.6, -2.4], fov: 60, zone: [2.0, -3.7, 6.2, 0.4] });

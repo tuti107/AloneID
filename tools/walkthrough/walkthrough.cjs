@@ -450,6 +450,12 @@ fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
   await check('__game.flags.harlowOpen', "harlow's door open");
   await check('__game.room.monsters.find((m) => m.id === "servThrall2").state !== "dormant"', 'one was waiting in there');
   await kill('servThrall2');
+  // through the doorway on foot: the opened door must really let him in
+  await place(4, 1.3, Math.PI);
+  await ev('__game.debugAuto = null');
+  await walkUntil(0, -1, '__game.player.pos.z < -0.8');
+  await ev('__game.debugAuto = { choices: [] }');
+  await check('__game.player.pos.z < -0.8', "walked in through harlow's doorway");
   await use('taken:keyring');
   await use('taken:harlowAmmo');
   await check('__game.has("keyring")', "harlow's keys");
