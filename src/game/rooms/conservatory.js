@@ -127,7 +127,9 @@ export default {
       g.spawn(r, { id: 'vine', type: 'vine', x: -3.6, z: 3.1, rot: 0.6 }).restore({ hp: 0, x: -3.6, z: 3.1, rot: 0.6, dead: true });
       if (!g.flags['taken:gardenKey']) placeKey(r, g);
     }
-    r.collider(-3.6, 3.1, 0.8, 0.8);
+    // the mound stops him walking into the weed, but not his blows or his
+    // shots: the weed itself stands inside it
+    r.collider(-3.6, 3.1, 0.8, 0.8, 0, { low: true });
 
     // ---- figures outside the glass, more each time the lightning comes
     r.watchers = [];

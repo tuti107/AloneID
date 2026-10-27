@@ -133,12 +133,16 @@ export default {
     // the passage cameras all look west, so walking the length of it never
     // turns the picture round; the west two look across from the south wall
     // so Agnes's door and the cold store's stand open in the picture
-    r.shot({ id: 'passW', pos: [-1.7, 2.6, 3.3], look: [-5.2, 0.7, 0.2], fov: 60, zone: [-6.2, 0.4, -2.0, 3.7] });
-    r.shot({ id: 'passC', pos: [2.2, 2.6, 3.3], look: [-1.3, 0.7, 0.2], fov: 60, zone: [-2.0, 0.4, 2.0, 3.7] });
+    // (each stands in the next zone east, so its own zone is all in front of
+    // it, right up against the south wall)
+    r.shot({ id: 'passW', pos: [-0.2, 2.6, 3.3], look: [-5.2, 0.7, 0.2], fov: 60, zone: [-6.2, 0.4, -2.0, 3.7] });
+    r.shot({ id: 'passC', pos: [3.7, 2.6, 3.3], look: [-1.3, 0.7, 0.2], fov: 60, zone: [-2.0, 0.4, 2.0, 3.7] });
     r.shot({ id: 'passE', pos: [5.7, 2.5, 0.85], look: [0.2, 0.7, 2.6], fov: 58, zone: [2.0, 0.4, 6.2, 3.7] });
     r.shot({ id: 'agnes', pos: [-2.4, 2.5, 0.05], look: [-4.8, 0.6, -2.4], fov: 60, zone: [-6.2, -3.7, -2.0, 0.4] });
     r.shot({ id: 'cold', pos: [1.6, 2.5, 0.05], look: [-0.4, 0.8, -2.6], fov: 60, zone: [-2.0, -3.7, 2.0, 0.4] });
-    r.shot({ id: 'harlow', pos: [2.4, 2.5, 0.05], look: [4.8, 0.6, -2.4], fov: 60, zone: [2.0, -3.7, 6.2, 0.4] });
+    r.shot({ id: 'harlow', pos: [2.4, 2.5, 0.05], look: [4.8, 0.6, -2.4], fov: 60, zone: [2.0, -3.7, 6.2, -1.2] });
+    // coming in at Harlow's door: from the far corner, the doorway in view
+    r.shot({ id: 'harlowIn', pos: [5.75, 2.55, -2.9], look: [3.6, 0.5, 0.4], fov: 60, zone: [2.0, -1.2, 6.2, 0.4] });
   },
 
   async enter(r, g) {

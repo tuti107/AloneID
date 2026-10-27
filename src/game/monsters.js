@@ -83,7 +83,7 @@ export class Monster {
     if (d > sight) return false;
     if (d < 2.2) return true;
     if (this.game.room.dark && !this.game.flags.lampLit && d > 3) return false;
-    return this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z);
+    return this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z, this.pos.y, p.pos.y);
   }
 
   update(dt) {
@@ -118,7 +118,7 @@ export class Monster {
         if (!p.alive) { this.setState('feast'); break; }
         const facing = Math.abs(angleDiff(this.rot, toP));
         // (never through a wall: what he can't strike back at can't strike him)
-        if (dist < this.T.range + p.radius * 0.5 && this.attackCd <= 0 && facing < 0.7 && Math.abs(p.pos.y - this.pos.y) < 0.9 && this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z)) {
+        if (dist < this.T.range + p.radius * 0.5 && this.attackCd <= 0 && facing < 0.7 && Math.abs(p.pos.y - this.pos.y) < 0.9 && this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z, this.pos.y, p.pos.y)) {
           this.startAttack(dist);
           break;
         }
@@ -190,10 +190,13 @@ export class Monster {
   // Steer towards (tx, tz) using the nav grid. Returns speed used.
   chase(dt, tx, tz, dist) {
     const nav = this.room.nav;
+    const p = this.player;
     this.pathT -= dt;
     if (this.pathT <= 0) {
       this.pathT = 0.45 + Math.random() * 0.2;
-      if (nav.clear(this.pos.x, this.pos.z, tx, tz)) this.path = [{ x: tx, z: tz }];
+      // close by with nothing between: straight at him (the nav grid is flat,
+      // and can't tell a deck or a landing from the hull or the hall under it)
+      if ((dist < 2.5 && this.room.nav.sight(this.pos.x, this.pos.z, tx, tz, this.pos.y, p.pos.y)) || nav.clear(this.pos.x, this.pos.z, tx, tz)) this.path = [{ x: tx, z: tz }];
       else this.path = nav.findPath(this.pos.x, this.pos.z, tx, tz) || [{ x: tx, z: tz }];
     }
     let wp = this.path && this.path[0];
@@ -208,8 +211,7 @@ export class Monster {
     this.rot = approachAngle(this.rot, want, this.T.turn * dt);
     // close enough: stand and strike, unless something is in between, then
     // keep coming round it
-    const p = this.player;
-    if (dist < this.T.range * 0.8 && Math.abs(p.pos.y - this.pos.y) < 0.9 && this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z)) return 0;
+    if (dist < this.T.range * 0.8 && Math.abs(p.pos.y - this.pos.y) < 0.9 && this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z, this.pos.y, p.pos.y)) return 0;
     return this.T.speed * (diff > 1.2 ? 0.15 : diff > 0.6 ? 0.5 : 1);
   }
 
@@ -228,7 +230,7 @@ export class Monster {
       const ang = Math.abs(angleDiff(this.rot, Math.atan2(dx, dz)));
       const reach = this.T.range + 0.4 + (this.state === 'leap' ? 0.4 : 0);
       // nothing solid between them (a ghost, that glides through furniture, strikes through it too)
-      const clear = this.ghostly || this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z);
+      const clear = this.ghostly || this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z, this.pos.y, p.pos.y);
       if (d < reach && ang < 1.1 && p.alive && Math.abs(p.pos.y - this.pos.y) < 1.0 && clear) {
         if (p.damage(this.T.dmg, this.pos.x, this.pos.z)) this.game.audio.sfx('hitFlesh', { at: p.pos });
       } else this.game.audio.sfx('whoosh', { at: this.pos, rate: 0.6 });
@@ -302,7 +304,7 @@ export class Ghoul extends Monster {
     this.leapCd -= dt;
     if (this.leapCd <= 0 && dist > 1.8 && dist < 3.4) {
       const p = this.player;
-      if (this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z)) {
+      if (this.room.nav.sight(this.pos.x, this.pos.z, p.pos.x, p.pos.z, this.pos.y, p.pos.y)) {
         this.rot = Math.atan2(p.pos.x - this.pos.x, p.pos.z - this.pos.z);
         this.setState('leap');
         this.anim.play('leap', { restart: true, fade: 0.08 });

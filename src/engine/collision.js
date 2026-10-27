@@ -127,10 +127,13 @@ export function segmentBox(b, x0, z0, x1, z1) {
   return tmin;
 }
 
-export function lineOfSight(boxes, x0, z0, x1, z1, ignoreLow = true) {
+// ya, yb: the heights the two ends stand at. A box wholly below both of them
+// (the body under a landing or a deck) or wholly above is not in between.
+export function lineOfSight(boxes, x0, z0, x1, z1, ignoreLow = true, ya = null, yb = ya) {
   for (const b of boxes) {
     if (!b.enabled || !b.solid) continue;
     if (ignoreLow && b.low) continue;
+    if (ya !== null && (Math.max(ya, yb) + 1.6 < b.y0 || Math.min(ya, yb) > b.y1 - 0.3)) continue;
     if (segmentBox(b, x0, z0, x1, z1) >= 0) return false;
   }
   return true;

@@ -64,7 +64,9 @@ export default {
       id: 'cellarRack', hw: 0.66, hd: 0.24, axis: [0, 1], min: 0, max: 1.5,
       onMove: (t, gg, silent) => {
         info.z = rack.position.z;
-        if (t >= 1.45 && !gg.flags.passageOpen) {
+        // open (and the tunnel trigger live) before the gap beside the rack
+        // is wide enough for him, which is at t = 0.7
+        if (t >= 0.65 && !gg.flags.passageOpen) {
           gg.flags.passageOpen = true;
           if (!silent) gg.task(async () => { gg.audio.sfx('sting'); await gg.say('ワイン棚の裏の壁に、黒々とした穴が口を開けた。\n奥から、波の音が聞こえる……。'); });
         }

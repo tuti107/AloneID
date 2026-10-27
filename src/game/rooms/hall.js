@@ -23,7 +23,7 @@ export default {
     r.shell(-7, -5, 7, 5, {
       h: H, floor: 'marble', ceil: 'plasterDark', mat: 'wallpaperRed', wainscot: 'wainscot', wainscotH: 1.2, crown: true,
       openings: {
-        s: [{ at: 0, w: 1.9, h: 2.9 }, { at: -4.2, w: 1.2, h: 2.4, sill: 0.9 }, { at: 4.2, w: 1.2, h: 2.4, sill: 0.9 }, { at: -4.2, w: 1.0, h: 1.4, sill: 4.3 }, { at: 4.2, w: 1.0, h: 1.4, sill: 4.3 }],
+        s: [{ at: 0, w: 1.9, h: 2.9, pass: true }, { at: -4.2, w: 1.2, h: 2.4, sill: 0.9 }, { at: 4.2, w: 1.2, h: 2.4, sill: 0.9 }, { at: -4.2, w: 1.0, h: 1.4, sill: 4.3 }, { at: 4.2, w: 1.0, h: 1.4, sill: 4.3 }],
         w: [{ at: 1.2, w: 1.7, h: 2.6 }],
         e: [{ at: 2.6, w: 1.2, h: 2.3 }, { at: -0.8, w: 1.0, h: 2.15 }, { at: -3.9, w: 1.0, h: 2.15 }],
         n: [{ at: -6.1, w: 1.4, h: 2.4, sill: LAND }],

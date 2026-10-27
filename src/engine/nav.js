@@ -153,7 +153,9 @@ export class NavGrid {
     return true;
   }
 
-  sight(x0, z0, x1, z1) {
-    return lineOfSight(this.boxes, x0, z0, x1, z1);
+  // (ya, yb: the heights of the two ends, so a box under a landing they
+  // both stand on doesn't come between them)
+  sight(x0, z0, x1, z1, ya = null, yb = ya) {
+    return lineOfSight(this.boxes, x0, z0, x1, z1, true, ya, yb);
   }
 }

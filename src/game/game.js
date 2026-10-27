@@ -675,7 +675,7 @@ export class Game {
       if (Math.abs(m.pos.y - p.pos.y) > 1.2) continue;
       const d = Math.hypot(m.pos.x - p.pos.x, m.pos.z - p.pos.z) - m.radius;
       if (d > range || (best && d >= best.d)) continue;
-      if (!this.room.nav.sight(p.pos.x, p.pos.z, m.pos.x, m.pos.z)) continue;
+      if (!this.room.nav.sight(p.pos.x, p.pos.z, m.pos.x, m.pos.z, p.pos.y, m.pos.y)) continue;
       best = { m, d };
     }
     return best;
@@ -760,7 +760,7 @@ export class Game {
       if (d > range) continue;
       const a = Math.abs(angleDiff(p.rot, Math.atan2(dx, dz)));
       if (a > arc) continue;
-      if (!this.room.nav.sight(p.pos.x, p.pos.z, m.pos.x, m.pos.z)) continue;
+      if (!this.room.nav.sight(p.pos.x, p.pos.z, m.pos.x, m.pos.z, p.pos.y, m.pos.y)) continue;
       const s = a * 3 + d * 0.15;
       if (s < bestScore) { best = m; bestScore = s; }
     }

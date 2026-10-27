@@ -51,6 +51,9 @@ export default {
     r.collider(-9.4, 0, 0.5, 8.4);
     r.collider(9.4, 4.0, 0.5, 4.4);
     r.collider(9.4, -7.2, 0.5, 1.2);
+    // the channel east is under water: it is the way on only through its
+    // interact, never on foot
+    r.collider(9.4, -3.2, 0.5, 2.8);
     // tide pools, gone phosphorescent where the drowned lie in them
     r.pools = [];
     for (const [x, z, w, d] of [[2.6, 2.2, 1.8, 1.3], [-3.4, 3.6, 2.0, 1.4], [5.6, -1.0, 1.4, 1.0]]) {

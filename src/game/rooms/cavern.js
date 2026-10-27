@@ -115,6 +115,9 @@ export default {
     // tunnel back to the cellar
     r.box('#020202', 0.2, 2.0, 1.5, -7.75, 0, 1.0, { cast: false });
     r.trigger({ box: [-7.6, 0.25, -7.0, 1.75], enter: (gg) => gg.goTo('cellar', 'fromCavern', { fadeOut: 0.5 }) });
+    // rock beside the mouth: the way through is the drawn opening, all of it
+    // inside the trigger
+    r.collider(-7.6, 2.2, 0.4, 0.4);
     r.entry('fromCellar', -6.4, 1.0, Math.PI / 2);
 
     // glowing fungus
