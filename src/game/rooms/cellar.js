@@ -126,6 +126,7 @@ export default {
     if (!g.flags.lampLit) {
       g.task(async () => {
         await g.say('真っ暗で何も見えない……！\n灯りがなければ、とても進めない。');
+        while (g.transitioning) await g.waitReal(0.1); // still coming in the door
         g.goTo('hall', 'fromCellar');
       });
     }

@@ -575,6 +575,7 @@ export class Game {
         clearInterval(iv);
         if (d.setOpen) d.setOpen(0);
       } else await this.fade(1, o.fadeOut ?? 0.4);
+      if (!this.player.alive) return; // he fell on the threshold: game over here
       this.enterRoom(id, entry);
       if (o.door) this.audio.sfx('doorClose', { delay: 0.15 });
       this.checkpoint = this.serialize();
@@ -1188,6 +1189,7 @@ export class Game {
     if (this.follower) { this.follower.leave(); this.follower = null; }
     this.player = new Player(this);
     this.transitioning = false;
+    this.inEnding = false;
     this.gfx.u.uWarp.value = 0;
     this.hurt = 0;
   }
@@ -1390,6 +1392,7 @@ export class Game {
   // How the story ends: a key of ENDINGS (text.js).
   async ending(kind) {
     const E = ENDINGS[kind];
+    this.inEnding = true;
     this.lock();
     this.escape = null;
     this.ui.setTimer(null);

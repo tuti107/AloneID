@@ -394,7 +394,8 @@ export class Player {
 
   damage(n, fromX, fromZ, o = {}) {
     const g = this.game;
-    if (!this.alive || this.invuln > 0 || g.godMode) return false;
+    // no harm while a doorway fade or the ending holds him still
+    if (!this.alive || this.invuln > 0 || g.godMode || g.transitioning || g.inEnding) return false;
     this.hp = Math.max(0, this.hp - n);
     this.invuln = o.invuln ?? 0.75;
     const dx = this.pos.x - fromX, dz = this.pos.z - fromZ;

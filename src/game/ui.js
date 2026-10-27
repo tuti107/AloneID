@@ -603,17 +603,28 @@ class TouchControls {
     this.rest = { x: 0, y: 0 };
     const PR = 75;
     // The stick's centre is wherever the thumb lands, so touching down never
-    // moves him. Near an edge the pad is drawn inset, and full tilt toward
-    // that edge is reached at the edge itself.
+    // moves him. Tilt is how far the thumb has gone along its heading, out of
+    // PR px, or out of the room to the screen edge that way when that is
+    // less: near an edge the pad is drawn inset, and full tilt toward the
+    // edge is reached at the edge itself.
     const padMove = (e) => {
-      const o = this.org;
+      const o = this.org, iw = window.innerWidth, ih = window.innerHeight;
       const mx = e.clientX - o.x, my = e.clientY - o.y;
-      let dx = mx / (mx < 0 ? o.l : o.r), dy = my / (my < 0 ? o.u : o.d);
-      const l = Math.hypot(dx, dy);
-      if (l > 1) { dx /= l; dy /= l; }
+      const m = Math.hypot(mx, my);
+      let dx = 0, dy = 0, l = 0, reach = PR;
+      if (m > 0) {
+        const ux = mx / m, uy = my / m;
+        const room = Math.min(ux < 0 ? o.x / -ux : ux > 0 ? (iw - o.x) / ux : Infinity, uy < 0 ? o.y / -uy : uy > 0 ? (ih - o.y) / uy : Infinity);
+        reach = Math.max(10, Math.min(PR, room - 2));
+        l = Math.min(1, m / reach);
+        dx = ux * l; dy = uy * l;
+      }
+      // the knob follows the thumb, never further out than the ring's inside
+      // or the room to the edge, so it always stays on screen
       const r = this.pad.getBoundingClientRect();
-      this.knob.style.left = 50 + ((o.x - r.left - r.width / 2) / r.width) * 100 + dx * 34 + '%';
-      this.knob.style.top = 50 + ((o.y - r.top - r.height / 2) / r.height) * 100 + dy * 34 + '%';
+      const k = l * Math.min(0.68 * PR, reach);
+      this.knob.style.left = o.x - r.left + (dx / (l || 1)) * k + 'px';
+      this.knob.style.top = o.y - r.top + (dy / (l || 1)) * k + 'px';
       input.touchStick = l > 0.2 ? { x: dx, y: dy } : null;
       this.knob.classList.toggle('run', l > RUN_TILT);
       const th = 0.38;
@@ -627,16 +638,15 @@ class TouchControls {
       if (this.padId !== null) return;
       this.padId = e.pointerId;
       e.currentTarget.setPointerCapture(e.pointerId);
-      const x = e.clientX, y = e.clientY, iw = window.innerWidth, ih = window.innerHeight;
-      const reach = (room) => Math.max(16, Math.min(PR, room - 2));
-      this.org = { x, y, l: reach(x), r: reach(iw - x), u: reach(y), d: reach(ih - y) };
-      this.pad.style.left = Math.max(4, Math.min(iw - 2 * PR - 4, x - PR)) + 'px';
-      this.pad.style.top = Math.max(4, Math.min(ih - 2 * PR - 4, y - PR)) + 'px';
+      const x = e.clientX, y = e.clientY;
+      this.org = { x, y };
+      this.pad.style.left = Math.max(4, Math.min(window.innerWidth - 2 * PR - 4, x - PR)) + 'px';
+      this.pad.style.top = Math.max(4, Math.min(window.innerHeight - 2 * PR - 4, y - PR)) + 'px';
       this.pad.classList.add('live');
       padMove(e);
     };
-    const padEnd = (e) => {
-      if (e.pointerId !== this.padId) return;
+    // let go of the stick: lifted, cancelled, or the screen turned under it
+    this.release = () => {
       this.padId = null;
       this.pad.classList.remove('live');
       this.pad.style.left = this.rest.x + 'px';
@@ -647,6 +657,7 @@ class TouchControls {
       input.touchStick = null;
       for (const a of ['up', 'down', 'left', 'right']) input.setTouch(a, false);
     };
+    const padEnd = (e) => { if (e.pointerId === this.padId) this.release(); };
     for (const t of [this.zone, this.pad]) {
       t.addEventListener('pointerdown', padStart);
       t.addEventListener('pointermove', (e) => { if (e.pointerId === this.padId) padMove(e); });
@@ -700,6 +711,9 @@ class TouchControls {
       area(this.zone, 0, 0, stage.left, H);
     }
     this.rest = { x: ox + px, y: oy + py };
+    // a held stick doesn't survive the screen changing size under it
+    if (this.padId !== null && (W !== this.lastW || H !== this.lastH)) this.release();
+    this.lastW = W; this.lastH = H;
     if (this.padId === null) place(this.pad, px, py);
   }
 }
