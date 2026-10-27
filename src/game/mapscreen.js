@@ -67,8 +67,8 @@ export class MapModal extends Modal {
 
   update(dt, input) {
     this.t += dt;
-    if (input.pressed('left')) this.setFloor(this.fi - 1);
-    if (input.pressed('right')) this.setFloor(this.fi + 1);
+    if (input.tapped('left')) this.setFloor(this.fi - 1);
+    if (input.tapped('right')) this.setFloor(this.fi + 1);
     if (input.pressed('cancel') || input.pressed('confirm') || input.pressed('pause') || input.pressed('map') || input.pressed('inventory')) {
       input.consume('cancel', 'confirm', 'action', 'attack', 'pause', 'map', 'inventory');
       this.shut();

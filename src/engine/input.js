@@ -18,6 +18,11 @@ const KEYMAP = {
   Escape: ['pause', 'cancel'], KeyP: ['pause'], Backspace: ['cancel'],
 };
 const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab', 'Backspace']);
+// Holding a direction steps a menu on by itself: once more after
+// REPEAT_DELAY seconds, then every REPEAT_EVERY.
+const REPEATS = ['up', 'down', 'left', 'right'];
+const REPEAT_DELAY = 0.38;
+const REPEAT_EVERY = 0.11;
 
 export class Input {
   constructor() {
@@ -27,6 +32,8 @@ export class Input {
     this.cur = new Set();
     this.prev = new Set();
     this.pressedSet = new Set();
+    this.freshSet = new Set();
+    this.repeatAt = new Map(); // direction held -> when it next steps (Infinity: not until let go)
     this.taps = new Set();
     this.consumed = new Set();
     this.axis = { x: 0, y: 0 };
@@ -99,6 +106,17 @@ export class Input {
     this.cur = cur;
     const pressed = new Set(this.taps);
     for (const a of cur) if (!this.prev.has(a)) pressed.add(a);
+    this.freshSet = new Set(pressed);
+    const now = performance.now() / 1000;
+    for (const a of REPEATS) {
+      if (!cur.has(a)) { this.repeatAt.delete(a); continue; }
+      const at = this.repeatAt.get(a);
+      if (at === undefined) this.repeatAt.set(a, now + REPEAT_DELAY);
+      else if (now >= at) {
+        pressed.add(a);
+        this.repeatAt.set(a, Math.max(at + REPEAT_EVERY, now));
+      }
+    }
     this.pressedSet = pressed;
     this.taps.clear();
     this.consumed.clear();
@@ -123,7 +141,13 @@ export class Input {
   }
 
   down(a) { return this.cur.has(a); }
+  // pressed this frame, or stepping on while held (directions)
   pressed(a) { return this.pressedSet.has(a) && !this.consumed.has(a); }
+  // pressed this frame only, never by holding (for steps that can't be undone)
+  tapped(a) { return this.freshSet.has(a) && !this.consumed.has(a); }
+  // a direction already held when a menu opens doesn't step it until let go
+  // and pushed again (he may still be walking as he opens it)
+  holdOff() { for (const a of REPEATS) if (this.cur.has(a)) this.repeatAt.set(a, Infinity); }
   consume(...as) { for (const a of as) this.consumed.add(a); }
   clear() {
     this.kb.clear();
@@ -131,6 +155,8 @@ export class Input {
     this.cur.clear();
     this.prev.clear();
     this.pressedSet.clear();
+    this.freshSet.clear();
+    this.repeatAt.clear();
     this.taps.clear();
   }
 }

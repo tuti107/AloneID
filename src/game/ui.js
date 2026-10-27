@@ -144,6 +144,7 @@ export class Modal {
     this.promise = new Promise((r) => (this.resolve = r));
   }
   open() {
+    this.game.input.holdOff();
     this.game.pushModal(this);
     return this.promise;
   }
@@ -511,8 +512,9 @@ export class DocumentModal extends Modal {
   }
   update(dt, input) {
     if (this.game.debugAuto) { this.game.log && this.game.log('doc', this.doc.title); this.page = this.maxPage; this.next(); return; }
-    if (input.pressed('right') || input.pressed('confirm')) { input.consume('confirm', 'action'); this.next(); }
-    else if (input.pressed('left') && this.page > 0) { this.page--; this.game.audio.sfx('paper'); this.render(); }
+    // one page a push: held, it would leaf through and shut the document
+    if (input.tapped('right') || input.pressed('confirm')) { input.consume('confirm', 'action'); this.next(); }
+    else if (input.tapped('left') && this.page > 0) { this.page--; this.game.audio.sfx('paper'); this.render(); }
     else if (input.pressed('cancel')) { input.consume('cancel', 'attack'); this.close(this.page); }
   }
 }
