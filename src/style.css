@@ -79,7 +79,7 @@ body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit
 .deco { color: var(--gold); letter-spacing: 0.3em; text-align: center; }
 .deco::before, .deco::after { content: '◆'; font-size: 0.6em; vertical-align: middle; margin: 0 0.8em; color: var(--gold2); }
 .list { list-style: none; margin: 0; padding: 0; }
-.list li { padding: calc(var(--u) * 1) calc(var(--u) * 4); cursor: pointer; position: relative; white-space: nowrap; }
+.list li { padding: calc(var(--u) * 1) calc(var(--u) * 4); cursor: pointer; position: relative; white-space: nowrap; display: flow-root; }
 .list li.sel { color: #fff; background: linear-gradient(90deg, rgba(184,149,74,0.35), rgba(184,149,74,0)); }
 .list li.sel::before { content: '▶'; position: absolute; left: calc(var(--u) * -1); color: var(--gold); font-size: 0.8em; top: 50%; transform: translateY(-50%); }
 .list li.off { color: #5a5244; }
@@ -173,7 +173,12 @@ body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit
 .tall .mapbox .tabs { flex-wrap: wrap; justify-content: center; }
 .tall .mapbox .tabs span { white-space: nowrap; }
 .tall .mapbox canvas { width: calc(var(--u) * 300); height: calc(var(--u) * 260); min-height: 0; flex: 0 1 auto; }
-.tall .doc { width: 90%; }
+.tall .doc { width: 94%; height: 94%; padding: calc(var(--u) * 9) calc(var(--u) * 10); }
+.tall .doc .pg { bottom: calc(var(--u) * 3); }
+/* the longest row (a chapter and its place) fits at 15px on a narrow stage */
+.tall .list li .val { margin-left: 1em; }
+/* the copyright follows the menu instead of lying over its last item */
+.tall #title .copy { position: static; margin: 0 calc(var(--u) * 4) calc(var(--u) * 3); text-align: center; }
 
 /* ---------------------------------------------------------------- touch */
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
