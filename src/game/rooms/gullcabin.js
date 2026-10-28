@@ -64,7 +64,14 @@ export default {
     const m = g.spawn(r, {
       id: 'ezekiel', type: 'ezekiel', x: -2.2, z: -2.0, rot: Math.PI, dormant: !g.flags.ezekielWoke,
       onHalf: (mm) => crewRises(r, g, mm),
+      onDown: (mm) => captainKneels(r, g, mm),
+      onRise: (mm) => {
+        r.interactables = r.interactables.filter((i) => i.id !== 'ezekielDown');
+        g.notify('船長が、また立ち上がった……！', 2.2);
+        void mm;
+      },
       onDeath: (mm) => {
+        r.interactables = r.interactables.filter((i) => i.id !== 'ezekielDown');
         g.flags['dead:ezekiel'] = true;
         g.flags.ezekielAt = [+mm.pos.x.toFixed(2), +mm.pos.z.toFixed(2)];
         g.audio.music(null);
@@ -115,6 +122,33 @@ function crewRises(r, g, m) {
   const t = g.spawn(r, { id: 'gullCrew', type: 'thrall', seed: 41, x: -0.8, z: 2.3, rot: Math.PI });
   t.bury();
   t.emerge();
+}
+
+// Shot or beaten down, he goes onto one knee: the wounds close while the
+// star in his chest beats. Only his own blade, cut into him now, ends it.
+function captainKneels(r, g, m) {
+  r.interactables = r.interactables.filter((i) => i.id !== 'ezekielDown');
+  r.interact({
+    id: 'ezekielDown', x: m.pos.x, z: m.pos.z, r: 1.0, priority: 3, label: '膝をついた船長',
+    verb: (gg) => (gg.has('cutlass') ? '斬る' : '調べる'),
+    use: (gg) => cutCaptain(r, gg, m),
+  });
+  const cut = g.has('cutlass');
+  if (g.flags.ezekielKnelt) { g.notify(cut ? '膝をついているうちに、カトラスで斬れ！' : '斬れる刃がなければ……！', 2.6); return; }
+  g.flags.ezekielKnelt = true;
+  g.run(() => g.say('船長が、どうと膝をついた。\nだが傷口が、潮が満ちるように塞がっていく――\n\n「父を斬らねば、星は揃わない」……ジョナの遺書の言葉。' + (cut ? '\n今のうちに、カトラスで！' : '\n納骨堂の、あのカトラスが要る。')));
+}
+
+async function cutCaptain(r, g, m) {
+  if (!m.alive || m.state !== 'down') return;
+  if (!g.has('cutlass')) {
+    await g.say('船長の胸の奥で、青い星が激しく脈打っている。\n傷が、みるみる塞がっていく。\n\n……この男を斬れる刃が要る。');
+    return;
+  }
+  if (g.inv.equipped !== 'cutlass') g.equip('cutlass');
+  const p = g.player;
+  p.rot = Math.atan2(m.pos.x - p.pos.x, m.pos.z - p.pos.z);
+  p.attack();
 }
 
 function placeLog(r, g) {

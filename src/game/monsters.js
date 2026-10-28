@@ -885,25 +885,53 @@ export class Stoker extends Monster {
 
 // Captain Ezekiel: he lunges across his cabin at a man a few paces off, is
 // not to be knocked about, and at half his strength calls up his crew.
+// Only a blade ends him, as Jonah wrote: shot or beaten down he goes onto
+// one knee while the sea in him closes the wounds, and stands again; cut
+// while he kneels, or cut down, he dies.
 const EZEKIEL_T = { build: CH.buildEzekiel, hp: 260, dmg: 20, speed: 0.95, turn: 2.6, range: 1.45, sight: 14, cd: 1.1, radius: 0.42, voice: 'ezekiel', stagger: 60, poise: 2.5 };
+const KNEEL_T = 4.5;
 export class Ezekiel extends Monster {
   constructor(game, room, o) {
     super(game, room, { ...o, type: 'ezekiel', T: EZEKIEL_T });
     this.lungeCd = 3;
     this.summoned = false;
     this.onHalf = o.onHalf || null;
+    this.onDown = o.onDown || null;
+    this.onRise = o.onRise || null;
   }
+  get hunting() { return super.hunting || this.state === 'down'; }
   turnTo(p) {
     this.rot = Math.atan2(p.x - this.pos.x, p.z - this.pos.z);
     this.sync();
   }
-  damage(n, fromX, fromZ, knock = 1) {
+  // how: what struck him ('blade' for the cutlass)
+  damage(n, fromX, fromZ, knock = 1, how = null) {
+    if (!this.alive) return false;
+    if (this.state === 'down') {
+      if (how !== 'blade') return false;
+      this.hp = 0;
+      this.die();
+      return true;
+    }
+    if (how !== 'blade' && this.hp - n <= 0) {
+      this.hp = 1;
+      this.kneel();
+      return true;
+    }
     const hit = super.damage(n, fromX, fromZ, knock);
     if (this.alive && !this.summoned && this.hp < this.maxHp / 2) {
       this.summoned = true;
       if (this.onHalf) this.onHalf(this);
     }
     return hit;
+  }
+  kneel() {
+    this.setState('down');
+    this.solid = false;
+    this.knock.set(0, 0);
+    this.anim.play('kneel', { restart: true, fade: 0.08 });
+    this.game.audio.sfx('ezekielHurt', { at: this.pos });
+    if (this.onDown) this.onDown(this);
   }
   special(dt, dist, toP) {
     this.lungeCd -= dt;
@@ -917,10 +945,35 @@ export class Ezekiel extends Monster {
     return false;
   }
   update(dt) {
-    super.update(dt);
+    if (this.state === 'down') {
+      this.stateT += dt;
+      if (this.stateT > KNEEL_T && this.anim.cur !== 'stand') {
+        this.anim.play('stand', { restart: true, fade: 0.1 });
+        this.game.audio.sfx('ezekielNotice', { at: this.pos });
+      }
+      this.anim.update(dt);
+      if (this.anim.cur === 'stand' && this.anim.finished) {
+        this.hp = Math.round(this.maxHp * 0.4);
+        this.solid = true;
+        this.setState('chase');
+        this.attackCd = 0.8;
+        if (this.onRise) this.onRise(this);
+      }
+      this.sync();
+    } else super.update(dt);
     const s = this.parts.star;
-    if (s) s.light.intensity = this.alive ? 2.5 + Math.sin(this.game.time * 5) * 1.0 : 0;
+    // the star in his chest beats hard while the wounds close
+    const beat = this.state === 'down' ? 9 : 5;
+    if (s) s.light.intensity = this.alive ? 2.5 + Math.sin(this.game.time * beat) * 1.0 : 0;
     if (s && !this.alive) { s.mesh.visible = false; s.glow.visible = false; }
+  }
+  serialize() {
+    // knelt for the moment: up again by the time anyone comes back
+    return { ...super.serialize(), hp: this.state === 'down' ? Math.round(this.maxHp * 0.4) : this.hp, summoned: this.summoned };
+  }
+  restore(d) {
+    super.restore(d);
+    if (d.summoned) this.summoned = true;
   }
 }
 

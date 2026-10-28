@@ -38,12 +38,15 @@ export class Clara {
     });
   }
 
-  // join him in a room, just behind where he came in
+  // join him in a room, just behind where he came in (or beside him, when
+  // the doorway is at his back)
   enter(room, player) {
     this.room = room;
-    const back = player.rot + Math.PI;
-    let x = player.pos.x + Math.sin(back) * 0.9, z = player.pos.z + Math.cos(back) * 0.9;
-    if (room.nav && room.nav.blockedAt(x, z)) { x = player.pos.x; z = player.pos.z; }
+    let x = player.pos.x, z = player.pos.z;
+    for (const a of [Math.PI, Math.PI * 0.75, -Math.PI * 0.75, Math.PI / 2, -Math.PI / 2]) {
+      const qx = player.pos.x + Math.sin(player.rot + a) * 0.9, qz = player.pos.z + Math.cos(player.rot + a) * 0.9;
+      if (!room.nav || !room.nav.blockedAt(qx, qz)) { x = qx; z = qz; break; }
+    }
     this.pos.set(x, room.floorY(x, z), z);
     this.rot = player.rot;
     this.path = null;

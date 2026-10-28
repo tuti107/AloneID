@@ -660,7 +660,8 @@ export class Game {
       // right next to it, any facing will do (the hero turns to it)
       const arc = itemId ? 1.8 : d < it.r + 0.35 ? Math.PI : it.arc ?? 1.3;
       if (ang > arc) continue;
-      const score = d + ang * 0.6;
+      // (priority: what matters now, over the furniture beside it)
+      const score = d + ang * 0.6 - (it.priority || 0);
       if (score < bestScore) { best = it; bestScore = score; }
     }
     return best;
@@ -751,7 +752,7 @@ export class Game {
       if (d > def.range + m.radius) continue;
       if (Math.abs(angleDiff(p.rot, Math.atan2(dx, dz))) > def.arc) continue;
       if (m.invulnerable) { if (m.ghostly) ghost = true; continue; }
-      if (m.damage(def.dmg, p.pos.x, p.pos.z, def.knock)) {
+      if (m.damage(def.dmg, p.pos.x, p.pos.z, def.knock, def.kind)) {
         hit = true;
         burst(this.room, m.pos.x - (dx / (d || 1)) * m.radius, m.pos.y + 1.1, m.pos.z - (dz / (d || 1)) * m.radius, m.type === 'crawler' || m.type === 'ghoul' ? 'ichor' : 'blood', { dir: [dx / (d || 1), dz / (d || 1)] });
       }
@@ -800,7 +801,7 @@ export class Game {
     if (t) {
       if (t.invulnerable) this.notify('弾がすり抜けた……！');
       else {
-        t.damage((w && w.dmg) || 34, p.pos.x, p.pos.z, w && w.ammo ? 4.0 : 2.0);
+        t.damage((w && w.dmg) || 34, p.pos.x, p.pos.z, w && w.ammo ? 4.0 : 2.0, 'gun');
         this.audio.sfx('hitFlesh', { at: t.pos, delay: 0.03 });
         const dx = t.pos.x - p.pos.x, dz = t.pos.z - p.pos.z, l = Math.hypot(dx, dz) || 1;
         burst(this.room, t.pos.x - (dx / l) * 0.25, t.pos.y + 1.15, t.pos.z - (dz / l) * 0.25, t.type === 'crawler' || t.type === 'ghoul' ? 'ichor' : 'blood', { dir: [dx / l, dz / l], n: 14 });

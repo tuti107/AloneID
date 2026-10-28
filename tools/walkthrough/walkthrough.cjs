@@ -711,10 +711,20 @@ fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
   await ev('__game.debugAuto = { choices: [] }');
   console.log('   ezekiel hp after harpoons:', ezHp, '->', await ev(`__game.room.monsters.find((m) => m.id === 'ezekiel').hp`), ' harpoons left:', await ev('__game.inv.harpoons'));
   await check(`__game.room.monsters.find((m) => m.id === 'ezekiel').hp <= ${ezHp} - 85`, 'a harpoon goes home');
+  // shot down he only kneels, and the sea stands him up again: only his
+  // own blade ends him
+  const EZ = `__game.room.monsters.find((m) => m.id === 'ezekiel')`;
   await kill('ezekiel');
+  await check(`${EZ}.alive && ${EZ}.state === 'down'`, 'shot down, he only kneels');
+  await idle('the wounds close');
+  await until(`${EZ}.state !== 'down'`, 'he stands again', 15000);
+  await check(`${EZ}.alive && ${EZ}.hp > 50 && !__game.room.interactables.some((i) => i.id === 'ezekielDown')`, 'the sea stands him up again');
+  await kill('ezekiel');
+  await until(`${EZ}.state === 'down'`, 'down on one knee again');
+  await use('ezekielDown');
   await page.waitForTimeout(800);
   await idle('he falls');
-  await check('__game.flags["dead:ezekiel"]', 'the captain is dead');
+  await check('__game.flags["dead:ezekiel"] && __game.inv.equipped === "cutlass"', 'cut with his own blade, the captain is dead');
   await use('taken:seastar');
   await use('taken:gullLog', [1]);
   await check('__game.has("seastar") && __game.has("gullLog")', 'the sea star and his log');

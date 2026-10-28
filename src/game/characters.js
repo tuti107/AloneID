@@ -358,6 +358,27 @@ export function buildEzekiel() {
       setJ(p, 'lKnee', 0.35 * down + 0.1);
     },
   };
+  // struck down by anything but a blade: onto one knee, head bowed over the
+  // star, the cutlass's point on the boards, while the sea in him closes
+  // the wounds; and up again
+  const e = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+  const kneel = (p, k, t = 0) => {
+    const heave = Math.sin(t * 2.2) * 0.04 * k;
+    setJ(p, 'hips', 0.1 * k, 0, 0);
+    setJ(p, 'spine', 0.04 + 0.42 * k + heave, 0, 0);
+    setJ(p, 'neck', -0.06 + 0.42 * k, 0, 0);
+    setJ(p, 'lHip', 0.06 - 1.41 * k);
+    setJ(p, 'lKnee', 0.06 + 1.4 * k);
+    setJ(p, 'rHip', -0.1 + 0.35 * k);
+    setJ(p, 'rKnee', 0.12 + 1.4 * k);
+    setJ(p, 'rShoulder', -0.4 - 0.1 * k, 0, -0.2);
+    setJ(p, 'rElbow', -0.7 + 0.4 * k);
+    setJ(p, 'lShoulder', 0.08 - 0.8 * k, 0, 0.14);
+    setJ(p, 'lElbow', -0.3 - 0.7 * k);
+    p[ROOT + 1] = -0.42 * k;
+  };
+  clips.kneel = { loop: true, fade: 0.08, fn(t, p) { kneel(p, e(t / 0.6), t); } };
+  clips.stand = { dur: 1.1, fade: 0.1, fn(t, p) { kneel(p, 1 - e(t / 1.1)); } };
   return { parts, clips };
 }
 
