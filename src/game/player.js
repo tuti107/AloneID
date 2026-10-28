@@ -69,24 +69,29 @@ export class Player {
 
     // weapons in the right hand
     this.weaponObjs = {};
-    // the poker and the cutlass are built point down, grip at the top:
-    // held by the grip (gripY up the model), the point down and a little ahead
-    const byGrip = (model, gripY) => {
+    // the poker and the cutlass are built point down, grip at the top: held
+    // by the grip (gripY up the model) the ordinary way, the point out of the
+    // thumb side of the fist, ahead of him and dipping (tilt below level),
+    // the edge down
+    const byGrip = (model, gripY, tilt) => {
       model.position.set(0, -gripY, 0);
       model.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      const turn = new THREE.Group();
+      turn.rotation.y = Math.PI / 2;
+      turn.add(model);
       const w = new THREE.Group();
       w.position.set(0, -0.03, 0.03);
-      w.rotation.x = -0.5;
-      w.add(model);
+      w.rotation.x = tilt - Math.PI / 2;
+      w.add(turn);
       return w;
     };
-    const pw = byGrip(ITEMS.poker.model(), 0.77);
+    const pw = byGrip(ITEMS.poker.model(), 0.77, 0.75);
     const gun = ITEMS.revolver.model();
     gun.rotation.x = Math.PI / 2;
     gun.position.set(0, -0.02, 0.02);
     const gw = new THREE.Group();
     gw.add(gun);
-    const cw = byGrip(ITEMS.cutlass.model(), 0.79);
+    const cw = byGrip(ITEMS.cutlass.model(), 0.79, 0.6);
     this.weaponObjs.poker = pw;
     this.weaponObjs.revolver = gw;
     this.weaponObjs.cutlass = cw;
