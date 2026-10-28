@@ -10,6 +10,8 @@ import { loft } from '../body.js';
 import { rng } from '../../engine/util.js';
 
 const DECK = 2.2;
+// the channel's mouth in the east wall, down to the shrine: z from .. to
+const CHANNEL = [-5.3, -2.7];
 // pools the drowned come up out of: x, z, facing
 const POOLS = [[2.6, 2.2, -2.4], [-3.4, 3.6, 2.6]];
 
@@ -48,13 +50,17 @@ export default {
     };
     const STAIR = [6.3, 8.1]; // the opening up to the crypt, z from .. to
     const offStair = (m) => (m.position.z < 7.2 ? r.clearOf(m, 0, -1, -STAIR[0]) : r.clearOf(m, 0, 1, STAIR[1]));
+    // and of the channel's mouth down to the shrine, its floor going down
+    const offChannel = (m) => (m.position.z < -4.0
+      ? r.clearOf(m, 0, -1, -CHANNEL[0], { y0: -1.6, y1: 3.0 })
+      : r.clearOf(m, 0, 1, CHANNEL[1], { y0: -1.6, y1: 3.0 }));
     for (let x = -9; x <= 9; x += 1.6) {
       const m = r.clearOf(lump(x + R() * 0.4, 8.9 + R() * 0.4, 1.5 + R() * 0.5), 0, 1, 8.0);
       if (m.position.x > 6.5) offStair(m);
     }
     for (let z = -7.5; z <= 8; z += 1.6) {
       r.clearOf(lump(-9.9 - R() * 0.3, z, 1.6 + R() * 0.5), -1, 0, 8.9);
-      if (z < -5.6 || z > -2.4) offStair(r.clearOf(lump(9.9 + R() * 0.3, z, 1.6 + R() * 0.5), 1, 0, 8.9));
+      if (z < -5.6 || z > -2.4) offStair(offChannel(r.clearOf(lump(9.9 + R() * 0.3, z, 1.6 + R() * 0.5), 1, 0, 8.9)));
     }
     r.collider(0, 8.5, 9.4, 0.5);
     r.collider(-9.4, 0, 0.5, 8.4);
@@ -147,12 +153,36 @@ export default {
       r.plankUp = up;
     }
 
-    // ---- the channel down to the shrine, at the east, under water until the
+    // ---- the channel down to the shrine, at the east: a passage into the
+    // rock under a heavy lintel, in shadow, its wet floor going down into
+    // the dark (where something glows), under black water until the
     // captain is dead
-    r.box('#010203', 0.1, 2.6, 2.6, 9.55, 0, -4.0, { cast: false });
-    const ch = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 2.6), new THREE.MeshPhongMaterial({ color: 0x06141a, specular: 0x6a8a90, shininess: 120, transparent: true, opacity: 0.9 }));
+    const [c0, c1] = CHANNEL;
+    r.quad(M('rockWet', { ts: [2, 2], color: 0x7a8682, flat: true }), [9.4, 0, c1], [11.4, -0.8, c1], [11.4, -0.8, c0], [9.4, 0, c0], { cast: false });
+    r.quad(M('rockWet', { ts: [2, 2], color: 0x283232, flat: true }), [11.4, -0.8, c1], [13.4, -1.6, c1], [13.4, -1.6, c0], [11.4, -0.8, c0], { cast: false });
+    // its sides and roof: rock in shadow, the darker the deeper
+    for (const [x, side, rad, seed, tint] of [[10.3, -1, 1.5, 501, 0x4a5454], [12.3, -1, 1.4, 502, 0x2a3232], [10.3, 1, 1.5, 503, 0x4a5454], [12.3, 1, 1.4, 504, 0x2a3232]]) {
+      const m = new THREE.Mesh(rockGeo(rad, seed, 1, [1.1, 1.7, 0.8]), M('rock', { color: tint, flat: true }));
+      m.position.set(x, 0.3, side < 0 ? c0 - 0.9 : c1 + 0.9);
+      r.static.add(m);
+      r.clearOf(m, 1, 0, 8.9);
+      if (side < 0) r.clearOf(m, 0, -1, -c0, { y0: -1.6, y1: 2.6, give: 0 });
+      else r.clearOf(m, 0, 1, c1, { y0: -1.6, y1: 2.6, give: 0 });
+    }
+    r.box(M('rock', { color: 0x2a3232 }), 4.2, 0.4, c1 - c0 + 0.6, 11.6, 2.6, -4.0, { cast: false });
+    r.box('#010203', 0.1, 4.6, c1 - c0 + 0.6, 13.6, -1.8, -4.0, { cast: false });
+    const lintel = new THREE.Mesh(rockGeo(1.7, 417, 1, [0.6, 0.75, 1.45]), M('rock', { flat: true }));
+    lintel.position.set(10.3, 2.5 + 0.75 * 1.7 * 1.25, -4.0);
+    lintel.castShadow = true;
+    r.static.add(lintel);
+    const deep = new THREE.Sprite(spriteMat('glow', 0x3ad0a0, 0.16));
+    deep.scale.set(2.6, 1.6, 1);
+    deep.position.set(12.6, -0.8, -4.0);
+    r.dynamic.add(deep);
+    // (brimming at the mouth, deepening down the passage)
+    const ch = new THREE.Mesh(new THREE.PlaneGeometry(4.9, c1 - c0 + 0.4), new THREE.MeshPhongMaterial({ color: 0x06141a, specular: 0x6a8a90, shininess: 120, transparent: true, opacity: 0.9 }));
     ch.rotation.x = -Math.PI / 2;
-    ch.position.set(8.8, 0.25, -4.0);
+    ch.position.set(11.15, 0.05, -4.0);
     ch.visible = !g.flags['dead:ezekiel'];
     r.dynamic.add(ch);
     r.channelWater = ch;
