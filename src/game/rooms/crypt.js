@@ -5,7 +5,7 @@
 // tower's light draws the tide back.
 import * as THREE from 'three';
 import * as F from '../furniture.js';
-import { M, C } from '../mats.js';
+import { M, C, spriteMat } from '../mats.js';
 
 const H = 3.2;
 // coffins in the walls that open, one after another, as he goes by
@@ -74,8 +74,9 @@ export default {
     const tombM = M('stoneWall', { color: 0xd8d2c4 });
     r.box(tombM, 1.0, 0.9, 2.2, sx0, 0, sz0, { collide: true });
     r.box(C(0x050404), 0.8, 0.02, 2.0, sx0, 0.9, sz0, { cast: false });
-    const slabLid = r.box(tombM, 1.05, 0.14, 2.25, sx0 + 0.55, 0.62, sz0 + 0.5, { rz: -0.5, ry: 0.35 });
-    void slabLid;
+    r.box(tombM, 1.05, 0.14, 2.25, sx0 + 0.55, 0.62, sz0 + 0.5, { rz: -0.5, ry: 0.35 });
+    // (the slab lying against it is solid too)
+    r.collider(sx0 + 0.6, sz0 + 0.5, 0.42, 1.12, 0.35);
     r.interact({
       id: 'ezekielTomb', x: sx0 - 0.85, z: sz0, r: 0.5, label: '石棺',
       use: (gg) => gg.say('大理石の石棺。「エゼキエル・アシュコム」と刻まれている。\n重い蓋は床に落ち、中は空っぽだ。\n\n……蓋の裏に、内側から引っ掻いた、無数の爪痕。'),
@@ -120,7 +121,7 @@ export default {
     r.dynamic.add(water);
     water.visible = !g.flags.tideReceded;
     r.tunnelWater = water;
-    r.collider(0, -6.9, 0.9, 0.35);
+    r.collider(0, -6.85, 0.9, 0.35);
     r.interact({
       id: 'seaTunnel', x: 0, z: -6.1, r: 0.6, label: '海への隧道',
       use: async (gg) => {
@@ -161,9 +162,20 @@ export default {
     r.shot({ id: 'door', pos: [2.6, 2.9, 6.0], look: [-1.2, 0.6, 0.0], fov: 58, zone: [-4.2, 1.0, 4.2, 6.7] });
     r.shot({ id: 'mid', pos: [-2.6, 2.9, 2.6], look: [1.4, 0.6, -3.4], fov: 58, zone: [-4.2, -3.0, 4.2, 1.0] });
     r.shot({ id: 'tunnel', pos: [2.4, 2.9, -0.6], look: [-0.4, 0.8, -6.4], fov: 58, zone: [-4.2, -6.7, 4.2, -3.0] });
+    // the way back up, out of the sea tunnel with Clara: from the tunnel's
+    // mouth down the length of the vault towards the door, not back at it
+    const out = () => !!g.flags.finalEscape;
+    r.shot({ id: 'outNorth', pos: [0.0, 2.1, -7.9], look: [0.0, 0.7, 4.0], fov: 58, priority: 2, zone: [-4.2, -6.7, 4.2, 0.6], when: out });
+    r.shot({ id: 'outDoor', pos: [2.8, 2.9, -1.2], look: [-0.4, 1.0, 6.4], fov: 58, priority: 2, zone: [-4.2, 0.6, 4.2, 6.7], when: out });
+  },
+
+  setup(r, g) {
+    // (the vault may still be built from the way down)
+    if (g.flags.finalEscape) escapeLights(r);
   },
 
   async enter(r, g) {
+    if (g.flags.finalEscape) { g.notify('墓地への扉へ――地上へ！', 3.0); return; }
     if (g.flags.cryptSeen) return;
     g.flags.cryptSeen = true;
     g.lock();
@@ -196,6 +208,18 @@ export default {
     });
   },
 };
+
+// On the way back up: the lamps at the door burn high, so it shows from the
+// far end of the vault.
+function escapeLights(r) {
+  if (r.escapeLit) return;
+  r.escapeLit = true;
+  for (const q of r.lights) if (q.light.position.z > 6) q.base *= 2.4;
+  const glow = new THREE.Sprite(spriteMat('glow', 0xffc080, 0.4));
+  glow.scale.set(2.6, 2.6, 1);
+  glow.position.set(0, 1.3, 6.3);
+  r.dynamic.add(glow);
+}
 
 function openLid(L, instant, g) {
   L.open = true;

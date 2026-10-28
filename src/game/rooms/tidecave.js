@@ -36,17 +36,26 @@ export default {
       sp.needsUpdate = true;
     });
     r.collider(0, -8.3, 9.4, 0.3);
-    // rock heaped round the walls
+    // rock heaped round the walls, each set back behind the floor's edge so
+    // he never stands half inside one, and clear of the way up to the crypt
     const lump = (x, z, s, sq = [1, 1.3, 1]) => {
       const m = new THREE.Mesh(rockGeo(s, Math.floor(R() * 999), 1, sq), M(R() < 0.5 ? 'rock' : 'rockWet', { flat: true }));
       m.position.set(x, s * 0.5, z);
       m.rotation.y = R() * 6;
       m.castShadow = true;
       r.static.add(m);
+      return m;
     };
-    for (let x = -9; x <= 9; x += 1.6) lump(x + R() * 0.4, 8.9 + R() * 0.4, 1.5 + R() * 0.5);
-    for (let z = -7.5; z <= 8; z += 1.6) { lump(-9.9 - R() * 0.3, z, 1.6 + R() * 0.5); if (z < -5.6 || z > -2.4) lump(9.9 + R() * 0.3, z, 1.6 + R() * 0.5); }
-    // (kept clear of the rocks' bulk, so he never stands half inside one)
+    const STAIR = [6.3, 8.1]; // the opening up to the crypt, z from .. to
+    const offStair = (m) => (m.position.z < 7.2 ? r.clearOf(m, 0, -1, -STAIR[0]) : r.clearOf(m, 0, 1, STAIR[1]));
+    for (let x = -9; x <= 9; x += 1.6) {
+      const m = r.clearOf(lump(x + R() * 0.4, 8.9 + R() * 0.4, 1.5 + R() * 0.5), 0, 1, 8.0);
+      if (m.position.x > 6.5) offStair(m);
+    }
+    for (let z = -7.5; z <= 8; z += 1.6) {
+      r.clearOf(lump(-9.9 - R() * 0.3, z, 1.6 + R() * 0.5), -1, 0, 8.9);
+      if (z < -5.6 || z > -2.4) offStair(r.clearOf(lump(9.9 + R() * 0.3, z, 1.6 + R() * 0.5), 1, 0, 8.9));
+    }
     r.collider(0, 8.5, 9.4, 0.5);
     r.collider(-9.4, 0, 0.5, 8.4);
     r.collider(9.4, 4.0, 0.5, 4.4);
@@ -71,9 +80,18 @@ export default {
     }
     r.waterAt = (x, z) => z < -7.9 || r.pools.some(([px, pz, a, b]) => ((x - px) / a) ** 2 + ((z - pz) / b) ** 2 < 1);
 
-    // ---- the way down from the crypt
+    // ---- the way down from the crypt: old stone steps going up into the
+    // rock between two dressed jambs, the crypt's lamplight at the top
     for (let i = 0; i < 4; i++) r.box('stoneFloor', 0.3, 0.12 + i * 0.12, 1.2, 8.0 + i * 0.3, 0, 7.2, { cast: false });
     r.box('#020304', 0.1, 2.2, 1.4, 9.3, 0, 7.2, { cast: false });
+    for (const z of [STAIR[0] + 0.1, STAIR[1] - 0.1]) r.box('stoneWall', 0.9, 2.5, 0.25, 9.25, 0, z);
+    r.box('stoneWall', 0.9, 0.35, 2.0, 9.25, 2.2, 7.2);
+    r.stairLight = r.point(8.9, 1.9, 7.2, { color: 0xffa860, intensity: 3, distance: 5, flicker: 0.1, speed: 3 });
+    const stairGlow = new THREE.Sprite(spriteMat('glow', 0xffa860, 0.25));
+    stairGlow.scale.set(1.6, 2.0, 1);
+    stairGlow.position.set(9.0, 1.2, 7.2);
+    r.dynamic.add(stairGlow);
+    r.stairGlow = stairGlow;
     r.trigger({ box: [8.2, 6.5, 9.4, 7.9], enter: (gg) => gg.goTo('crypt', 'fromCave', { fadeOut: 0.5 }) });
     r.entry('fromCrypt', 7.6, 7.2, -Math.PI / 2 - 0.4);
 
@@ -194,9 +212,13 @@ export default {
     r.shot({ id: 'wreck', pos: [-1.2, 4.0, 7.2], look: [-3.4, 1.4, -2.6], fov: 60, zone: [-5.0, -2.2, 3.0, 8.4] });
     r.shot({ id: 'stern', pos: [-1.0, 5.2, 3.2], look: [-8.0, 0.4, 3.2], fov: 62, zone: [-9.4, -2.2, -5.0, 8.4] });
     r.shot({ id: 'deck', pos: [2.6, 5.6, 2.6], look: [-3.6, DECK, -3.6], fov: 58, zone: [-9.4, -8.4, 3.0, -2.2] });
+    // the way back, up out of the shrine with the cave coming down: from the
+    // channel's end, down the east side to the steps
+    r.shot({ id: 'outEast', pos: [6.4, 5.4, -9.8], look: [8.0, 0.4, 3.6], fov: 58, priority: 2, zone: [3.0, -8.4, 9.4, 3.0], when: () => !!g.flags.finalEscape });
   },
 
   async enter(r, g, entry) {
+    if (g.flags.finalEscape) { g.notify('灯りの漏れる石段を上れ――納骨堂へ！', 3.2); return; }
     if (g.flags.caveSeen || entry !== 'fromCrypt') return;
     g.flags.caveSeen = true;
     g.lock();
@@ -209,6 +231,8 @@ export default {
 
   setup(r, g) {
     if (g.flags['dead:ezekiel']) r.channelWater.visible = false;
+    // (the cave may still be built from the way down)
+    if (g.flags.finalEscape) escapeLights(r);
   },
 
   update(r, g) {
@@ -222,6 +246,17 @@ export default {
     }
   },
 };
+
+// On the way back out: the lamplight at the top of the steps up to the crypt
+// burns brighter, so the way shows from the far end of the cave.
+function escapeLights(r) {
+  if (r.escapeLit) return;
+  r.escapeLit = true;
+  const L = r.lights.find((q) => q.light === r.stairLight);
+  if (L) L.base = 9;
+  r.stairGlow.material = spriteMat('glow', 0xffb070, 0.6);
+  r.stairGlow.scale.set(2.2, 2.6, 1);
+}
 
 // The wreck: a hull on her side along the north of the cave, her deck tilted
 // up towards the cave floor, a broken mast, rags of sail, and the stern
@@ -321,7 +356,9 @@ async function turnCapstan(r, g) {
 async function lowerPlank(r, instant, g) {
   if (r.plankUp) { r.dynamic.remove(r.plankUp); r.plankUp = null; }
   r.stairs(-1.6, 1.0, 'n', { w: 0.9, len: 3.2, rise: DECK, steps: 10, mat: 'woodBlack', side: 'woodBlack' });
-  r.nav.rebuild(r.colliders, 0.34);
+  // (while the cave is still being built there is no nav yet: it is made
+  // with the stair in it)
+  if (r.nav) r.nav.rebuild(r.colliders, 0.34);
   if (instant) return;
   g.flags.plankDown = true;
   g.audio.sfx('slam', { at: { x: -1.6, y: 1, z: 0 } });

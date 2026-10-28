@@ -106,6 +106,44 @@ export class Room {
     return b;
   }
 
+  // Set a mesh already placed (a heaped rock) back along (nx, nz), the way
+  // out through the wall it lines, until nothing of it between y0 and y1
+  // comes nearer the room than `face` (where the floor he can walk on
+  // stops, measured along that direction) less `give`: so he never stands
+  // inside one.
+  clearOf(mesh, nx, nz, face, o = {}) {
+    const y0 = o.y0 ?? 0, y1 = o.y1 ?? 2.2, give = o.give ?? 0.1;
+    mesh.updateMatrixWorld(true);
+    const p = mesh.geometry.attributes.position, idx = mesh.geometry.index, e = mesh.matrixWorld.elements;
+    const W = (i) => {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      return [e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]];
+    };
+    let min = Infinity;
+    const at = (q) => { const s = q[0] * nx + q[2] * nz; if (s < min) min = s; };
+    const n = idx ? idx.count : p.count;
+    for (let t = 0; t < n; t += 3) {
+      const v = [0, 1, 2].map((k) => W(idx ? idx.getX(t + k) : t + k));
+      // the corners of the triangle clipped to the band
+      for (let k = 0; k < 3; k++) {
+        const a = v[k], b = v[(k + 1) % 3];
+        if (a[1] >= y0 && a[1] <= y1) at(a);
+        for (const y of [y0, y1]) {
+          if ((a[1] - y) * (b[1] - y) >= 0) continue;
+          const u = (y - a[1]) / (b[1] - a[1]);
+          at([a[0] + (b[0] - a[0]) * u, y, a[2] + (b[2] - a[2]) * u]);
+        }
+      }
+    }
+    const t = face - give - min;
+    if (t > 0 && Number.isFinite(t)) {
+      mesh.position.x += nx * t;
+      mesh.position.z += nz * t;
+      mesh.updateMatrixWorld(true);
+    }
+    return mesh;
+  }
+
   floor(x0, z0, x1, z1, m, y = 0, type = null) {
     const material = mat(m);
     const w = x1 - x0, d = z1 - z0;
@@ -911,12 +949,13 @@ export class Room {
     this.buildAutoShots();
   }
 
-  // Opaque, shadow-casting meshes become view blockers for the camera
-  // director (oriented boxes, so sloped beams stay tight).
+  // Opaque, shadow-casting meshes (or ones marked userData.occlude) become
+  // view blockers for the camera director (oriented boxes, so sloped beams
+  // stay tight).
   collectOccluders() {
     const occ = [];
     const ok = (m) => {
-      if (!m.isMesh || !m.castShadow || !m.visible) return false;
+      if (!m.isMesh || !(m.castShadow || m.userData.occlude) || !m.visible) return false;
       const mat = Array.isArray(m.material) ? m.material[0] : m.material;
       if (!mat || mat.transparent || mat.isMeshBasicMaterial) return false;
       const g = m.geometry;

@@ -81,7 +81,8 @@ export default {
     r.collider(-3.9, -2.2, 3.1, 0.3);
     r.collider(3.9, -2.2, 3.1, 0.3);
     r.collider(0, -2.4, 1.0, 0.25);
-    // cave walls: heaps of rock around the perimeter
+    // cave walls: heaps of rock around the perimeter, each set back behind
+    // the floor's edge so he never walks into one, and clear of the tunnel
     const wall = (x, z, s, sq = [1, 1.4, 1]) => {
       const rk = new THREE.Mesh(rockGeo(s, Math.floor(R() * 999), 1, sq), M(R() < 0.5 ? 'rock' : 'rockWet', { flat: true }));
       rk.position.set(x, s * 0.6, z);
@@ -89,14 +90,24 @@ export default {
       rk.castShadow = true;
       rk.receiveShadow = true;
       r.static.add(rk);
+      return rk;
     };
-    for (let x = -7.2; x <= 7; x += 1.5) { wall(x, 5.6 + R() * 0.4, 1.4 + R() * 0.5); wall(x + 0.7, -7.0 - R() * 0.4, 1.8 + R() * 0.6, [1, 1.8, 1]); }
-    for (let z = -6.5; z <= 5.5; z += 1.5) { wall(7.6 + R() * 0.4, z, 1.5 + R() * 0.5); if (z < 0 || z > 2.2) wall(-8.0 - R() * 0.3, z, 1.5 + R() * 0.5); }
+    for (let x = -7.2; x <= 7; x += 1.5) { r.clearOf(wall(x, 5.6 + R() * 0.4, 1.4 + R() * 0.5), 0, 1, 4.7); wall(x + 0.7, -7.0 - R() * 0.4, 1.8 + R() * 0.6, [1, 1.8, 1]); }
+    for (let z = -6.5; z <= 5.5; z += 1.5) {
+      r.clearOf(wall(7.6 + R() * 0.4, z, 1.5 + R() * 0.5), 1, 0, 6.8);
+      if (z < 0 || z > 2.2) {
+        const rk = r.clearOf(wall(-8.0 - R() * 0.3, z, 1.5 + R() * 0.5), -1, 0, 7.2);
+        if (z < 0) r.clearOf(rk, 0, -1, -0.3);
+        else r.clearOf(rk, 0, 1, 1.8);
+      }
+    }
     r.collider(0, 5.1, 8, 0.4);
     r.collider(7.2, 0, 0.4, 7);
     r.collider(-7.6, -3.0, 0.4, 3.0);
     r.collider(-7.6, 4.0, 0.4, 1.4);
-    r.collider(-7.4, 0, 0.3, 0.3);
+    // the tunnel mouth's south jamb, flush with the wall beside it (a lip
+    // there catches him as he slides along the wall to the mouth)
+    r.collider(-7.45, 0, 0.25, 0.3);
     // ceiling with stalactites
     const ceil = new THREE.Mesh(uvPlane(16, 13, [3, 3]), M('rock'));
     ceil.rotation.x = Math.PI / 2;

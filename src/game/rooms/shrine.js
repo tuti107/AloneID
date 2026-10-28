@@ -14,11 +14,15 @@ import { rng } from '../../engine/util.js';
 
 export const FINAL_ESCAPE = 120;
 const PILLARS = [{ id: 'pillarW', x: -2.3, z: -4.2 }, { id: 'pillarE', x: 2.3, z: -4.2 }];
+// the channel's mouth in the back wall of the shelf, x from .. to
+const MOUTH = [5.85, 7.35];
 
 export default {
   id: 'shrine',
   name: '深淵の祭殿',
   bounds: [-10.4, -10.4, 10.4, 10.4],
+  // corner cameras over the open shelf and the abyss, not in the rock
+  camRect: [-8.8, -8.6, 8.8, 9.4, 6.0],
   floorType: 'rock',
   ambience: 'abyss',
   dark: true,
@@ -29,7 +33,8 @@ export default {
     r.scene.fog = new THREE.FogExp2(0x081214, 0.016);
     // the shelf they come in on, the causeway, and the island
     const rockM = M('rockWet', { ts: [3, 3], color: 0xd4dcd8, flat: true });
-    r.floor(-9.0, 2.2, 9.0, 10.0, rockM, 0, 'rock');
+    // (out under the heaped rocks and into the channel's mouth)
+    r.floor(-10.4, 2.2, 10.4, 12.6, rockM, 0, 'rock');
     r.floor(-1.2, -2.2, 1.2, 2.2, rockM, 0, 'rock');
     r.floor(-3.4, -8.2, 3.4, -2.2, rockM, 0, 'rock');
     // the abyss all round: nothing to stand on
@@ -40,7 +45,12 @@ export default {
     r.collider(0, -9.3, 3.4, 1.1);
     r.collider(-9.8, 6.1, 0.6, 3.9);
     r.collider(9.8, 6.1, 0.6, 3.9);
-    r.collider(0, 10.3, 9.0, 0.4);
+    // the back wall, open at the channel's mouth
+    r.collider((-9.0 + MOUTH[0]) / 2, 10.3, (MOUTH[0] + 9.0) / 2, 0.4);
+    r.collider((MOUTH[1] + 9.0) / 2, 10.3, (9.0 - MOUTH[1]) / 2, 0.4);
+    r.collider(MOUTH[0] - 0.25, 11.15, 0.25, 1.25);
+    r.collider(MOUTH[1] + 0.25, 11.15, 0.25, 1.25);
+    r.collider(6.6, 12.5, 1.0, 0.1);
     const deep = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshBasicMaterial({ color: 0x030608 }));
     deep.rotation.x = -Math.PI / 2;
     deep.position.y = -14;
@@ -63,9 +73,37 @@ export default {
     for (let z = -2.0; z <= 2.0; z += 1.2) { edge(-1.5, z, 0.6); edge(1.5, z, 0.6); }
     for (let z = -8.0; z <= -2.4; z += 1.3) { edge(-3.7, z, 0.75); edge(3.7, z, 0.75); }
     for (let x = -3.0; x <= 3.0; x += 1.3) edge(x, -8.5, 0.8);
-    // the cavern walls round the shelf, and the roof far above
-    for (let x = -9; x <= 9; x += 1.8) { const m = new THREE.Mesh(rockGeo(2 + R(), Math.floor(R() * 999), 1, [1, 2.2, 1]), M('rock', { flat: true })); m.position.set(x, 1.5, 11.0 + R()); r.static.add(m); }
-    for (let z = 2.5; z <= 10; z += 1.8) for (const sx of [-1, 1]) { const m = new THREE.Mesh(rockGeo(2 + R(), Math.floor(R() * 999), 1, [1, 2.2, 1]), M('rock', { flat: true })); m.position.set(sx * (10.6 + R()), 1.5, z); r.static.add(m); }
+    // the cavern walls round the shelf, set back behind the floor's edge so
+    // he never walks into one, and clear of the channel's mouth; the roof
+    // far above
+    const wallRock = (rad, seed, x, y, z, sq = [1, 2.2, 1]) => {
+      const m = new THREE.Mesh(rockGeo(rad, seed, 1, sq), M('rock', { flat: true }));
+      m.position.set(x, y, z);
+      m.userData.occlude = true;
+      r.static.add(m);
+      return m;
+    };
+    const keepOff = (m) => (m.position.x < 6.6 ? r.clearOf(m, -1, 0, -(MOUTH[0] - 0.5), { y1: 3.0 }) : r.clearOf(m, 1, 0, MOUTH[1] + 0.5, { y1: 3.0 }));
+    for (let x = -9; x <= 9; x += 1.8) {
+      const rad = 2 + R(), seed = Math.floor(R() * 999), z = 11.0 + R();
+      if (x > MOUTH[0] - 1.6 && x < MOUTH[1] + 0.5) continue;
+      keepOff(r.clearOf(wallRock(rad, seed, x, 1.5, z), 0, 1, 9.9, { y1: 3.0 }));
+    }
+    for (let z = 2.5; z <= 10; z += 1.8) {
+      for (const sx of [-1, 1]) {
+        const rad = 2 + R(), seed = Math.floor(R() * 999), x = sx * (10.6 + R());
+        r.clearOf(wallRock(rad, seed, x, 1.5, z), sx, 0, 9.2, { y1: 3.0 });
+      }
+    }
+    // ---- the channel's mouth: rock either side and over it, a passage of
+    // wet stone going up into the dark, and the cold of the cave beyond
+    for (const [x, seed] of [[MOUTH[0] - 1.2, 377], [MOUTH[1] + 1.2, 611]]) {
+      const m = r.clearOf(wallRock(2.0, seed, x, 1.6, 11.2, [0.8, 1.6, 1]), 0, 1, 9.9, { y1: 3.0 });
+      keepOff(m);
+    }
+    wallRock(1.7, 233, 6.6, 2.8 + 1.7 * 0.8 * 1.25, 11.0, [1.4, 0.8, 1.2]);
+    for (let i = 0; i < 3; i++) r.box(rockM, MOUTH[1] - MOUTH[0], 0.14 * (i + 1), 0.4, 6.6, 0, 11.0 + i * 0.4, { cast: false });
+    r.box('#010203', MOUTH[1] - MOUTH[0] + 0.1, 3.0, 0.1, 6.6, 0, 12.45, { cast: false });
     for (let i = 0; i < 20; i++) {
       const st = F.stalactite(1.2 + R() * 2.4, 0.2 + R() * 0.3, R() * 6, 'rock');
       st.position.set(-9 + R() * 18, 9.5, -9 + R() * 18);
@@ -74,9 +112,13 @@ export default {
     }
 
     // ---- the way in, from the channel
-    r.box('#010203', 1.6, 2.6, 0.1, 6.6, 0, 10.1, { cast: false });
-    r.trigger({ box: [5.6, 9.4, 7.6, 10.4], enter: (gg) => leaveShrine(r, gg) });
+    r.trigger({ box: [MOUTH[0], 10.2, MOUTH[1], 12.4], enter: (gg) => leaveShrine(r, gg) });
     r.entry('fromCave', 6.6, 9.2, Math.PI + 0.5);
+    const mouthGlow = new THREE.Sprite(spriteMat('glow', 0x7a9ac0, 0.22));
+    mouthGlow.scale.set(2.2, 2.6, 1);
+    mouthGlow.position.set(6.6, 1.3, 11.9);
+    r.dynamic.add(mouthGlow);
+    r.mouthGlow = mouthGlow;
 
     // ---- what fell from the cavern above: the old altar, broken, and in it
     // the first star stone, still warm
@@ -138,7 +180,7 @@ export default {
     r.shaft(0, 10, -2.4, 0, 0.9, -6.2, { r0: 0.3, r: 1.9, alpha: 0.05 });
     r.point(0, 3.5, -6.0, { color: 0x6a8aa0, intensity: 12, distance: 12 });
     r.point(-4.0, 2.5, 6.0, { color: 0x5a8a7a, intensity: 12, distance: 12 });
-    r.point(5.0, 2.5, 7.0, { color: 0x5a7a8a, intensity: 12, distance: 12 });
+    r.mouthLight = r.point(6.2, 2.4, 9.0, { color: 0x5a7a8a, intensity: 12, distance: 12 });
     for (const [x, z] of [[-4.8, -1.2], [4.8, -1.2], [0, -9.8]]) r.point(x, -1.4, z, { color: 0x40c8a0, intensity: 22, distance: 13, flicker: 0.15, speed: 0.5 });
     r.point(0, -4, -10, { color: 0x40a080, intensity: 30, distance: 20, flicker: 0.2, speed: 0.6 });
     // (only the island's pair throw light: a phone can only carry so many)
@@ -148,8 +190,18 @@ export default {
       r.flame(x, 0.98, z, { size: 0.22, color: 0x9affd8, glow: 0x40ffb0, lightColor: 0x50e0a0, intensity: 10, distance: 10, flicker: 0.3, light: lit });
     }
 
-    r.shot({ id: 'shelf', pos: [0.0, 6.0, -1.5], look: [0.0, 0.2, 6.6], fov: 64, zone: [-10.4, 2.0, 10.4, 10.4] });
+    r.shot({ id: 'shelf', pos: [0.0, 6.0, -1.5], look: [0.0, 0.2, 6.6], fov: 64, zone: [-4.0, 2.0, 4.0, 10.4] });
+    // either end of the shelf, from over the causeway: the mouth to the
+    // east, the fallen altar to the west
+    r.shot({ id: 'shelfE', pos: [1.0, 5.4, 3.4], look: [7.0, 0.6, 8.6], fov: 60, zone: [4.0, 2.0, 10.4, 10.4] });
+    r.shot({ id: 'shelfW', pos: [-1.0, 5.4, 3.4], look: [-7.0, 0.6, 7.4], fov: 60, zone: [-10.4, 2.0, -4.0, 10.4] });
     r.shot({ id: 'island', pos: [3.6, 5.6, 4.2], look: [-0.4, 0.8, -5.4], fov: 62, zone: [-10.4, -10.4, 10.4, 2.0] });
+    // the way back out once the god burns: from behind him, towards the
+    // causeway and the mouth, all the way
+    const out = () => !!g.flags.finalEscape;
+    r.shot({ id: 'outIsland', pos: [-1.6, 5.2, -9.4], look: [1.4, 0.6, 3.4], fov: 60, priority: 2, zone: [-10.4, -10.4, 10.4, 2.2], when: out });
+    r.shot({ id: 'outShelf', pos: [-2.6, 5.4, 1.2], look: [6.0, 0.8, 9.6], fov: 60, priority: 2, zone: [-4.0, 2.2, 10.4, 10.4], when: out });
+    if (g.flags.finalEscape) escapeLights(r);
   },
 
   setup(r, g) {
@@ -297,10 +349,27 @@ async function throwFlame(r, g) {
   g.cut(null);
   g.flags.claraFollowing = true;
   g.flags.finalEscape = true;
+  escapeLights(r);
   g.escape = { t: FINAL_ESCAPE, total: FINAL_ESCAPE, final: true };
   g.audio.music('escape');
   g.startFollower();
   g.unlock();
+}
+
+// The way out shows: the cold of the cave above pouring down the channel's
+// mouth.
+function escapeLights(r) {
+  if (r.escapeLit) return;
+  r.escapeLit = true;
+  const L = r.lights.find((q) => q.light === r.mouthLight);
+  if (L) L.base = 20;
+  r.mouthLight.color.set(0x8ab4d8);
+  r.mouthGlow.material = spriteMat('glow', 0xa8c8f0, 0.6);
+  r.mouthGlow.scale.set(2.6, 3.0, 1);
+  const beam = new THREE.Sprite(spriteMat('glow', 0xa8c8f0, 0.3));
+  beam.scale.set(4.0, 1.6, 1);
+  beam.position.set(6.6, 0.15, 10.4);
+  r.dynamic.add(beam);
 }
 
 async function leaveShrine(r, g) {

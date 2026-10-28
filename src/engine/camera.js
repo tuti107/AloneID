@@ -30,6 +30,9 @@ export class Shot {
     this.trackLimit = def.trackLimit ?? (this.auto ? 0.8 : 0.5);
     this.zones = (def.zones || (def.zone ? [def.zone] : [])).map((z) => (z.length === 4 && typeof z[0] === 'number' ? rectToPoly(z) : z));
     this.priority = def.priority || 0;
+    // when() -> bool: a shot that applies only while it holds (the way
+    // back out during an escape)
+    this.when = def.when || null;
     this.near = def.near || 0.05;
     this.hide = def.hide || [];
     this.cam = new THREE.PerspectiveCamera(this.fov, ASPECT, this.near, 100);
@@ -46,6 +49,9 @@ export class Shot {
   contains(x, z) {
     for (const poly of this.zones) if (pointInPoly(x, z, poly)) return true;
     return false;
+  }
+  live() {
+    return !this.when || !!this.when();
   }
 }
 
@@ -220,14 +226,14 @@ export class CameraDirector {
 
   zoneShot(x, z) {
     let best = null;
-    for (const s of this.shots) if (!s.auto && s.contains(x, z) && (!best || s.priority > best.priority)) best = s;
+    for (const s of this.shots) if (!s.auto && s.live() && s.contains(x, z) && (!best || s.priority > best.priority)) best = s;
     return best;
   }
 
   best(pts, x, z, exclude = null) {
     let best = null, bestS = -1e9, bestE = null;
     for (const s of this.shots) {
-      if (s === exclude || s.rail) continue;
+      if (s === exclude || s.rail || !s.live()) continue;
       const e = this.evaluate(s, pts, {});
       const sc = this.score(s, e, x, z);
       if (sc > bestS) { best = s; bestS = sc; bestE = e; }
@@ -288,6 +294,8 @@ export class CameraDirector {
     const pts = this.setPoints(target);
     const x = target.x, z = target.z;
     let cut = false;
+    // a shot whose moment has passed (or come) is chosen again from scratch
+    if (this.current && !this.current.live()) this.current = null;
     if (this.forced) {
       cut = this.cutTo(this.forced) || force;
       this.steer(this.forced, target, dt, cut);

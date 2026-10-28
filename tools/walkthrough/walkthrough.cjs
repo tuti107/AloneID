@@ -78,6 +78,42 @@ fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
     for (const key of k) await page.keyboard.up(key);
     return k;
   };
+  // Run to (tx, tz) the way a player does it: the stick held towards the
+  // next turn of the room's nav path, read against the camera (and the basis
+  // he keeps while it stays held), re-aimed as he goes. Prints any stall.
+  const walkTo = async (tx, tz, cond, ms = 30000) => {
+    const t0 = Date.now();
+    let held = [], last = null, lastT = Date.now();
+    const set = async (k) => {
+      for (const key of held) if (!k.includes(key)) await page.keyboard.up(key);
+      for (const key of k) if (!held.includes(key)) await page.keyboard.down(key);
+      held = k;
+    };
+    await page.keyboard.down('ShiftLeft');
+    while (Date.now() - t0 < ms && !(await ev(cond))) {
+      const st = await ev(`(() => {
+        const g = __game, p = g.player.pos;
+        if (!g.idle) return { x: p.x, z: p.z, k: [] };
+        const path = g.room.nav.findPath(p.x, p.z, ${tx}, ${tz});
+        let w = { x: ${tx}, z: ${tz} };
+        if (path && path.length) { w = path[path.length - 1]; for (const q of path) if (Math.hypot(q.x - p.x, q.z - p.z) > 0.6) { w = q; break; } }
+        let dx = w.x - p.x, dz = w.z - p.z; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+        const b = g.player.basis, d = b ? { x: b.fx, z: b.fz } : g.director.controlDir();
+        const f = dx * d.x + dz * d.z, r = dx * -d.z + dz * d.x;
+        const k = [];
+        if (f > 0.38) k.push('ArrowUp'); if (f < -0.38) k.push('ArrowDown');
+        if (r > 0.38) k.push('ArrowRight'); if (r < -0.38) k.push('ArrowLeft');
+        return { x: p.x, z: p.z, k };
+      })()`);
+      await set(st.k);
+      if (!last || Math.hypot(st.x - last[0], st.z - last[1]) > 0.25) { last = [st.x, st.z]; lastT = Date.now(); }
+      else if (Date.now() - lastT > 1500 && st.k.length) { console.log(`   (stalled at ${st.x.toFixed(2)}, ${st.z.toFixed(2)})`); lastT = Date.now(); }
+      await page.waitForTimeout(120);
+    }
+    await set([]);
+    await page.keyboard.up('ShiftLeft');
+    return ev(cond);
+  };
   const walkUntil = async (dx, dz, cond, ms = 9000) => {
     const t0 = Date.now();
     let first = true;
@@ -284,7 +320,7 @@ fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
   step('escape the flood (on foot)');
   await check('__game.room.escapeLit', 'the way out lit');
   await ev('__game.debugAuto = null');
-  await walkUntil(-1, 0, '__game.room.id === "cellar"', 25000);
+  await walkTo(-7.4, 1.0, '__game.room.id === "cellar"', 25000);
   if (await ev('__game.room.id !== "cellar"')) console.log('   (not in the cellar yet:', await ev(`[__game.room.id, __game.player.pos.x.toFixed(2), __game.player.pos.z.toFixed(2), __game.escape && __game.escape.t.toFixed(1), __game.director.current && __game.director.current.id, __game.player.state, __game.modals.length, __game.locked].join(' ')`), ')');
   await ev('__game.debugAuto = { choices: [] }');
   await until('__game.room.id === "cellar"', 'back to cellar');
@@ -704,15 +740,24 @@ fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
   await idle('the flame');
   await check('__game.flags.godBurned && __game.flags.finalEscape && !!__game.follower', 'the undying flame thrown: Clara wakes and follows');
   await snap('shrine');
-  await place(6.6, 9.9, 0);
-  await until('__game.room.id === "tidecave"', 'out of the shrine');
-  await idle();
+  // the way back on foot, every room's camera facing the way out
+  await ev('__game.debugAuto = null');
+  await page.waitForTimeout(600);
+  await check('__game.room.escapeLit && __game.director.current.id.startsWith("out")', 'the way out lit, the camera facing it');
+  await walkTo(6.6, 10.9, '__game.room.id !== "shrine" || __game.transitioning');
+  await until('__game.room.id === "tidecave" && __game.idle', 'out of the shrine on foot');
   await page.waitForTimeout(800);
   console.log('   clara behind him:', await ev('(__game.follower.pos.distanceTo(__game.player.pos)).toFixed(2)'));
   await check('__game.follower && __game.follower.room === __game.room', 'Clara comes too');
-  await place(8.8, 7.2, -Math.PI / 2);
-  await until('__game.room.id === "crypt"', 'up into the crypt');
-  await idle();
+  await check('__game.director.current.id === "outEast"', 'the cave seen towards the steps up');
+  await walkTo(8.45, 7.2, '__game.room.id !== "tidecave" || __game.transitioning');
+  await until('__game.room.id === "crypt" && __game.idle', 'up into the crypt on foot');
+  await page.waitForTimeout(600);
+  await check('__game.director.current.id === "outNorth"', 'the crypt seen towards its door');
+  await walkTo(0, 5.75, 'Math.hypot(__game.player.pos.x, __game.player.pos.z - 5.75) < 0.5');
+  console.log('   time left at the door:', await ev('__game.escape && __game.escape.t.toFixed(1)'));
+  await check('__game.escape && __game.escape.t > 60', 'the way back in good time');
+  await ev('__game.debugAuto = { choices: [] }');
   await ev(`__game.testDoor('graveyard')`);
   await until('__game.state === "ending"', 'the ending', 30000);
   await check('__game.state === "ending"', 'out into the dawn: the ending');
