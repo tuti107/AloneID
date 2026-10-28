@@ -114,7 +114,7 @@ export default {
     r.pickup('lantern', 2.45, L2 + 0.95, -2.84, {
       label: 'ランタン', ry: 0.4,
       onTake: async (gg) => {
-        await gg.say('鉄枠の、船乗りの嵐のランタン。\n中は空っぽで、油も火もない。');
+        await gg.say('踊り場の鉤に、鉄枠の嵐のランタンが掛かっていた。\n毎晩、灯室へ火の番に上るハーロウの物だろう。\n中は空っぽで、油も火もない。');
         const m = r.monsters.find((x) => x.id === 'towerThrall2');
         if (m && m.alive && m.state === 'dormant') {
           m.wake();
@@ -154,6 +154,12 @@ export default {
     // looking straight down the well; from the top landing, across it
     r.shot({ id: 'well', pos: [0, 6.8, 1.9], look: [0, 0, -0.5], fov: 62, track: 0, zone: LOWER });
     r.shot({ id: 'upper', pos: [1.5, 6.6, 1.3], look: [-1.0, 3.6, -2.2], fov: 62, zone: UPPER });
+    // the south half, the way in from the boiler room and the first flight:
+    // the well camera is straight over him there and sees only his hat
+    r.shot({ id: 'south', pos: [1.6, 5.6, -1.6], look: [0.0, 0.6, 1.7], fov: 62, priority: 1, zone: [-3.2, -0.52, 3.2, 3.2] });
+    // the second landing: from over the flight he comes up by, the wall
+    // ahead with the lantern on its hook
+    r.shot({ id: 'landing2', pos: [2.4, 5.3, 0.6], look: [2.2, 3.2, -2.6], fov: 58, priority: 1, zone: [1.0, -3.2, 3.2, -1.9] });
   },
 
   setup(r, g, entry) {
