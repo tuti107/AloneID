@@ -491,6 +491,10 @@ fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
   step('tower');
   await check('__game.room.id === "tower"', 'in the tower');
   await kill('towerThrall1');
+  // the panel up on the top landing, right over his head in the well
+  await place(-1.5, -1.5, -Math.PI / 2);
+  await page.waitForTimeout(300);
+  await check('(__game.findInteractable() || {}).id !== "towerPanel"', "the landing's panel is out of reach from the well below");
   // up the three flights for real
   await place(-2.4, 2.45, Math.PI / 2);
   await ev('__game.debugAuto = null');

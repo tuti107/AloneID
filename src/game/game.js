@@ -649,6 +649,9 @@ export class Game {
     for (const it of this.room.interactables) {
       if (it.enabled && !it.enabled(this)) continue;
       if (itemId && !it.item) continue;
+      // on another floor (the panel up on the tower's landing, over his head
+      // in the well below) it is out of reach
+      if (Math.abs(this.room.floorY(it.x, it.z) - p.pos.y) > 1.3) continue;
       const dx = it.x - p.pos.x, dz = it.z - p.pos.z;
       const d = Math.hypot(dx, dz);
       const reach = it.r + (it.reach ?? 0.7) + (itemId ? 0.6 : 0);
