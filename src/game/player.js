@@ -69,23 +69,24 @@ export class Player {
 
     // weapons in the right hand
     this.weaponObjs = {};
-    const poker = ITEMS.poker.model();
-    poker.position.set(0, -0.06, 0.04);
-    poker.rotation.x = Math.PI - 0.5;
-    poker.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    const pw = new THREE.Group();
-    pw.add(poker);
+    // the poker and the cutlass are built point down, grip at the top:
+    // held by the grip (gripY up the model), the point down and a little ahead
+    const byGrip = (model, gripY) => {
+      model.position.set(0, -gripY, 0);
+      model.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      const w = new THREE.Group();
+      w.position.set(0, -0.03, 0.03);
+      w.rotation.x = -0.5;
+      w.add(model);
+      return w;
+    };
+    const pw = byGrip(ITEMS.poker.model(), 0.77);
     const gun = ITEMS.revolver.model();
     gun.rotation.x = Math.PI / 2;
     gun.position.set(0, -0.02, 0.02);
     const gw = new THREE.Group();
     gw.add(gun);
-    const cut = ITEMS.cutlass.model();
-    cut.position.set(0, -0.06, 0.04);
-    cut.rotation.x = Math.PI - 0.5;
-    cut.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    const cw = new THREE.Group();
-    cw.add(cut);
+    const cw = byGrip(ITEMS.cutlass.model(), 0.79);
     this.weaponObjs.poker = pw;
     this.weaponObjs.revolver = gw;
     this.weaponObjs.cutlass = cw;
