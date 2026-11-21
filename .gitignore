@@ -5,3 +5,4 @@ dist/
 tools/trailer/out/
 __pycache__/
 tools/walkthrough/out/
+tools/checks/out/
