@@ -17,7 +17,8 @@
 
 - GitHub: `tuti107/AloneID`（非公開）。デフォルトブランチは `claude/ashcombe-house`。作業は全部ここ。PR は無い。
 - `main` は起点ブランチ。このセッション（2026-10-24 開始、空のリポジトリから）は記録上の起点が `refs/heads/main` だったのに GitHub に無かったので、2026-11-22 にユーザーの指示で `claude/ashcombe-house` の先端から作った。
-  - `main` も削除・改名・force push をしない。作業を `main` に取り込むか、どう取り込むかはユーザーに確認してから。
+  - `main` も削除・改名・force push をしない。
+  - `main` への取り込みは、ユーザーに頼まれたときだけ。やり方は `claude/ashcombe-house` と同じ位置への早送り（`git push origin HEAD:refs/heads/main`、通常の push）。2026-11-22 に一度、そこまでの作業を取り込んだ。
 - push: `git push -u origin claude/ashcombe-house`
 - 遊べる場所: claude.ai の Artifact https://claude.ai/artifact/Sg5D8gDgENWqL3bLqFKfqY （非公開、現在 Version 20）。
   宣言済みの capabilities は `db` と `user`（サーバー側セーブ）。再公開では `capabilities` を渡さない（引き継がれる）。
