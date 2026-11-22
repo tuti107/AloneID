@@ -15,8 +15,9 @@
 
 ## ブランチと公開先
 
-- GitHub: `tuti107/AloneID`（非公開）。ブランチは `claude/ashcombe-house` だけで、これがデフォルトブランチ。作業も全部ここ。`main` は無い。PR は無い。
-- このセッション（2026-10-24 開始）は空のリポジトリから始まり、記録上の起点は `refs/heads/main`（GitHub に存在しない）。ブランチの作成・削除はユーザーの判断待ち。docs/handoff.md 参照。
+- GitHub: `tuti107/AloneID`（非公開）。デフォルトブランチは `claude/ashcombe-house`。作業は全部ここ。PR は無い。
+- `main` は起点ブランチ。このセッション（2026-10-24 開始、空のリポジトリから）は記録上の起点が `refs/heads/main` だったのに GitHub に無かったので、2026-11-22 にユーザーの指示で `claude/ashcombe-house` の先端から作った。
+  - `main` も削除・改名・force push をしない。作業を `main` に取り込むか、どう取り込むかはユーザーに確認してから。
 - push: `git push -u origin claude/ashcombe-house`
 - 遊べる場所: claude.ai の Artifact https://claude.ai/artifact/Sg5D8gDgENWqL3bLqFKfqY （非公開、現在 Version 20）。
   宣言済みの capabilities は `db` と `user`（サーバー側セーブ）。再公開では `capabilities` を渡さない（引き継がれる）。
@@ -60,10 +61,9 @@
 - 個別: `tools/checks/escape.cjs`（最後の脱出を徒歩で）、`captain.cjs`（船長戦）、`topmap.cjs`+`overlay.py`（部屋の俯瞰図）、`views.cjs`+`sheet.py`（カメラ画像）、`lips.cjs`（壁の段差）
 - Artifact の更新: リリースビルド後、Artifact ツールで `dist/artifact.html` を `url` に上の URL を付けて publish（新しい会話では先に `action: read`）。`capabilities` は渡さない。
 
-## 現状と残課題（2026-11-21）
+## 現状と残課題（2026-11-22）
 
-- 最新: `a2485b9`（V20 のリリースビルド）。V20 公開済み。通しプレイ 147/147、チャプター・smoke・artifact いずれも合格。
-- ユーザーの返事待ち:
-  1. 一般公開の方法（A: Artifact の共有メニュー / B: GitHub Pages。B はリポジトリが非公開なので公開化か GitHub Pro が要る。Pages の設定は Branch `claude/ashcombe-house`・フォルダ `/docs`）。
-  2. 起点 `refs/heads/main` が GitHub に無い件の扱い（ユーザーの判断なしにブランチを作らない）。
+- ゲームは V20 公開済み（リリースビルド `a2485b9`）。通しプレイ 147/147、チャプター・smoke・artifact いずれも合格。
+- 2026-11-22: 起点 `main` を GitHub に作った（セッションが開けなくなる問題の予防）。
+- ユーザーの返事待ち: 一般公開の方法（A: Artifact の共有メニュー / B: GitHub Pages。B はリポジトリが非公開なので公開化か GitHub Pro が要る。Pages の設定は Branch `claude/ashcombe-house`・フォルダ `/docs`）。
 - 気づいているが手を付けていない小さな点は docs/handoff.md の「残り」。
